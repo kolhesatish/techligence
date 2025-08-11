@@ -119,7 +119,7 @@ const App = () => (
                 path="/controller/advanced-urdf-controller"
                 element={<AdvancedURDFController />}
               />
-              <Route path="/robot-lab" element={<RobotLab />} />
+              {/* <Route path="/robot-lab" element={<RobotLab />} /> */}
               {/* Catch-all route for 404 Not Found */}
               <Route path="*" element={<NotFound />} />
             </Routes>
