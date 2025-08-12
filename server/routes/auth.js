@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import User from "../models/User.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { resolveSoa } from "dns";
+import { sendOTP, generateOTP, saveOTP, verifyOTP } from "../services/otpService.js";
 
 const router = express.Router();
 
@@ -93,20 +94,15 @@ router.post(
 
       await user.save();
 
-      // Generate token
-      const token = generateToken(user._id);
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
+      // Send OTP
+      const otp = generateOTP();
+      saveOTP(email, otp);
+      await sendOTP(email, otp);
 
       res.status(201).json({
         success: true,
-        message: "User registered successfully",
-        data: {
-          user: user.toJSON(),
-          token,
-        },
+        message: "User registered. OTP sent to email.",
+        data: { userId: user._id },
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -171,9 +167,14 @@ router.post(
 
       // Check if user is active
       if (!user.isActive) {
+        // Resend OTP if the user is not active
+        const otp = generateOTP();
+        saveOTP(email, otp);
+        await sendOTP(email, otp);
+
         return res.status(401).json({
           success: false,
-          message: "Account is deactivated. Please contact support.",
+          message: "Account is not activated. A new OTP has been sent to your email.",
         });
       }
 
@@ -399,6 +400,116 @@ router.post("/refresh", authenticateToken, async (req, res) => {
     });
   }
 });
+
+
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (verifyOTP(email, otp)) {
+      const user = await User.findOneAndUpdate(
+        { email },
+        { isActive: true, emailVerified: true },
+        { new: true },
+      );
+
+      if (!user) {
+        return res
+          .status(400)
+          .json({ success: false, message: "User not found." });
+      }
+
+      // Generate token
+      const token = generateToken(user._id);
+
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+
+      res.json({
+        success: true,
+        message: "OTP verified successfully. Login successful.",
+        data: {
+          user: user.toJSON(),
+          token,
+        },
+      });
+    } else {
+      res.status(400).json({ success: false, message: "Invalid or expired OTP." });
+    }
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    res.status(500).json({ success: false, message: "OTP verification failed." });
+  }
+});
+
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    if (user.isActive) {
+      return res.status(400).json({ success: false, message: "Account is already activated." });
+    }
+
+    const otp = generateOTP();
+    saveOTP(email, otp);
+    await sendOTP(email, otp);
+
+    res.json({ success: true, message: "A new OTP has been sent to your email." });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    res.status(500).json({ success: false, message: "Failed to resend OTP." });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const otp = generateOTP();
+    saveOTP(email, otp);
+    await sendOTP(email, otp);
+
+    res.json({ success: true, message: "An OTP has been sent to your email to reset your password." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ success: false, message: "Failed to send password reset OTP." });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (verifyOTP(email, otp)) {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found." });
+      }
+
+      user.password = newPassword;
+      await user.save();
+
+      res.json({ success: true, message: "Password has been reset successfully." });
+    } else {
+      res.status(400).json({ success: false, message: "Invalid or expired OTP." });
+    }
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ success: false, message: "Failed to reset password." });
+  }
+});
+
 
 
 export default router;
