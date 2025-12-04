@@ -9,6 +9,7 @@ import Footer from "./components/Footer"; // Import Footer
 
 import Index from "./pages/Index";
 import Products from "./pages/Products";
+import ProductDetail from "./pages/ProductDetail";
 import Controller from "./pages/Controller";
 import Auth from "./pages/Auth";
 import Career from "./pages/Career";
@@ -89,6 +90,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/controller" element={<Controller />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/career" element={<Career />} />

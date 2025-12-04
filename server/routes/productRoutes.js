@@ -2,6 +2,7 @@ import express from "express";
 import { body, validationResult } from "express-validator";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
+import mongoose from "mongoose";
 import Product from "../models/Products.js"; // Adjust path to your Product Mongoose model
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js"; // Your authentication and authorization middleware
 import { updateSingleContentItem } from "../utils/contentIngestor.js"; // NEW: Import contentIngestor for RAG updates
@@ -40,6 +41,33 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("Error fetching all products:", error);
     res.status(500).json({ success: false, message: "Failed to fetch products", error: error.message });
+  }
+});
+
+// GET /by-id/:id - Get a single product by MongoDB _id (Public route)
+router.get("/by-id/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid product ID format" });
+    }
+
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    res.json({
+      success: true,
+      message: "Product fetched successfully!",
+      data: product,
+    });
+  } catch (error) {
+    console.error("Error fetching product by _id:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch product", error: error.message });
   }
 });
 

@@ -9,11 +9,20 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { useCartStore } from "@/store/cartStore";
 import ShoppingCartComponent from "@/components/ShoppingCart"; // Renamed to avoid conflict
-import { productsAPI } from "@/services/api";
-import { Loader2 } from "lucide-react";
+import { productsAPI, productLikesAPI } from "@/services/api";
+import { Loader2, Copy, Check } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Bot,
@@ -67,6 +76,13 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { addItem } = useCartStore();
+  const { isAuthenticated } = useAuth();
+  const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set());
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [copied, setCopied] = useState(false);
 
   // Fetch products from API
   useEffect(() => {
@@ -91,6 +107,32 @@ const Products = () => {
     fetchProducts();
   }, []);
 
+  // Fetch like counts and status for all products
+  useEffect(() => {
+    if (products.length > 0) {
+      products.forEach(async (product) => {
+        try {
+          const response = await productLikesAPI.getLikeCount(product._id);
+          if (response.data.success) {
+            setLikeCounts((prev) => ({
+              ...prev,
+              [product._id]: response.data.data.likeCount,
+            }));
+          }
+
+          if (isAuthenticated) {
+            const statusResponse = await productLikesAPI.getLikeStatus(product._id);
+            if (statusResponse.data.success && statusResponse.data.data.isLiked) {
+              setLikedProducts((prev) => new Set(prev).add(product._id));
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching like data for product ${product._id}:`, err);
+        }
+      });
+    }
+  }, [products, isAuthenticated]);
+
   // Transform products to match the expected format
   const robots = products.map((product) => {
     // Extract numeric price from string (e.g., "$12,999" -> 12999)
@@ -100,6 +142,7 @@ const Products = () => {
       : undefined;
 
     return {
+      _id: product._id,
       id: product.productId,
       name: product.name,
       category: product.category,
@@ -153,6 +196,68 @@ const Products = () => {
       }
       return newFavorites;
     });
+  };
+
+  const toggleFeatures = (productId: string) => {
+    setExpandedFeatures((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleLike = async (productId: string) => {
+    if (!isAuthenticated) {
+      toast.info("Please login to like products");
+      return;
+    }
+
+    try {
+      const response = await productLikesAPI.toggleLike(productId);
+      if (response.data.success) {
+        setLikeCounts((prev) => ({
+          ...prev,
+          [productId]: response.data.data.likeCount,
+        }));
+
+        setLikedProducts((prev) => {
+          const newSet = new Set(prev);
+          if (response.data.data.isLiked) {
+            newSet.add(productId);
+          } else {
+            newSet.delete(productId);
+          }
+          return newSet;
+        });
+
+        toast.success(
+          response.data.data.isLiked
+            ? "Product liked!"
+            : "Product unliked!"
+        );
+      }
+    } catch (err: any) {
+      console.error("Error toggling like:", err);
+      toast.error(err.response?.data?.message || "Failed to toggle like");
+    }
+  };
+
+  const handleShare = (productId: string) => {
+    const url = `${window.location.origin}/products/${productId}`;
+    setShareUrl(url);
+    setShareDialogOpen(true);
+    setCopied(false);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    toast.success("Link copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // Products are now fetched from API and transformed above
@@ -295,18 +400,28 @@ const Products = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => toggleFavorite(robot.id)}
+                        onClick={() => handleLike(robot._id)}
                         className="h-8 w-8"
                       >
                         <Heart
                           className={`w-4 h-4 ${
-                            favorites.has(robot.id)
+                            likedProducts.has(robot._id)
                               ? "fill-red-500 text-red-500"
                               : "text-muted-foreground"
                           }`}
                         />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      {likeCounts[robot._id] > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {likeCounts[robot._id]}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleShare(robot._id)}
+                      >
                         <Share2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     </div>
@@ -317,7 +432,7 @@ const Products = () => {
                       <img
                         src={robot.image}
                         alt={robot.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     ) : (
                       <div className="text-6xl">{robot.image || "🤖"}</div>
@@ -410,19 +525,31 @@ const Products = () => {
                   <div>
                     <h4 className="font-semibold mb-3">Key Features</h4>
                     <div className="space-y-2">
-                      {robot.features.slice(0, 3).map((feature, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <CheckCircle className="w-4 h-4 text-primary" />
-                          {feature}
-                        </div>
-                      ))}
+                      {robot.features
+                        .slice(
+                          0,
+                          expandedFeatures.has(robot._id)
+                            ? robot.features.length
+                            : 3
+                        )
+                        .map((feature, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <CheckCircle className="w-4 h-4 text-primary" />
+                            {feature}
+                          </div>
+                        ))}
                       {robot.features.length > 3 && (
-                        <div className="text-sm text-muted-foreground">
-                          +{robot.features.length - 3} more features
-                        </div>
+                        <button
+                          onClick={() => toggleFeatures(robot._id)}
+                          className="text-sm text-primary hover:underline cursor-pointer"
+                        >
+                          {expandedFeatures.has(robot._id)
+                            ? "Show less"
+                            : `+${robot.features.length - 3} more features`}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -439,30 +566,18 @@ const Products = () => {
                     </Button>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" className="gap-2">
-                        <Bot className="w-4 h-4" />
-                        View Details
-                      </Button>
+                      <Link to={`/products/${robot._id}`} className="w-full">
+                        <Button variant="outline" className="w-full gap-2">
+                          <Bot className="w-4 h-4" />
+                          View Details
+                        </Button>
+                      </Link>
                       <Link to="/controller" className="w-full">
                         <Button variant="outline" className="w-full gap-2">
                           <ArrowRight className="w-4 h-4" />
                           Try Demo
                         </Button>
                       </Link>
-                    </div>
-                  </div>
-
-                  {/* Financing Option */}
-                  <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-center">
-                    <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                      Starting at{" "}
-                      <span className="font-bold">
-                        {formatPrice(typeof robot.price === 'number' ? Math.round(robot.price / 24) : robot.price)}
-                        /month
-                      </span>
-                    </div>
-                    <div className="text-xs text-blue-600 dark:text-blue-300">
-                      0% APR for 24 months
                     </div>
                   </div>
                 </CardContent>
@@ -472,6 +587,33 @@ const Products = () => {
           )}
         </div>
       </section>
+
+      {/* Share Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Product</DialogTitle>
+            <DialogDescription>
+              Copy the link below to share this product with others.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input value={shareUrl} readOnly className="flex-1" />
+            <Button
+              onClick={copyToClipboard}
+              variant="outline"
+              size="icon"
+              className="h-10 w-10"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-green-500" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* CTA Section */}
       <section className="py-16 bg-muted/30">

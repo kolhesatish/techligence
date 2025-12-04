@@ -104,8 +104,16 @@ const ShoppingCartComponent = () => {
                         key={item.id}
                         className="flex gap-4 p-4 border rounded-lg"
                       >
-                        <div className="w-16 h-16 bg-gradient-to-br from-accent/20 to-primary/10 rounded-lg flex items-center justify-center">
-                          <span className="text-2xl">{item.image}</span>
+                        <div className="w-16 h-16 bg-gradient-to-br from-accent/20 to-primary/10 rounded-lg flex items-center justify-center overflow-hidden">
+                          {item.image && (item.image.startsWith('http') || item.image.startsWith('https')) ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <span className="text-2xl">{item.image || "🤖"}</span>
+                          )}
                         </div>
 
                         <div className="flex-1 min-w-0">

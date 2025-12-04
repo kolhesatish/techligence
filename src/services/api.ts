@@ -165,6 +165,9 @@ export const productsAPI = {
   getProductById: (productId: number) =>
     apiCall(() => api.get(`/products/${productId}`)),
 
+  getProductByMongoId: (id: string) =>
+    apiCall(() => api.get(`/products/by-id/${id}`)),
+
   getProducts: () =>
     apiCall(() => api.get("/products")),
 
@@ -176,6 +179,18 @@ export const productsAPI = {
         },
       })
     ),
+};
+
+// Product Likes API
+export const productLikesAPI = {
+  getLikeCount: (productId: string) =>
+    apiCall(() => api.get(`/product-likes/${productId}`)),
+
+  getLikeStatus: (productId: string) =>
+    apiCall(() => api.get(`/product-likes/${productId}/status`)),
+
+  toggleLike: (productId: string) =>
+    apiCall(() => api.post(`/product-likes/${productId}`)),
 };
 
 // Blog API (existing)

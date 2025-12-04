@@ -5,8 +5,7 @@ dotenv.config();
 
 // Retrieve Pinecone configuration from environment variables
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-// For serverless, the client is initialized with just the API key.
-// The index-specific host is provided when you get the index instance.
+
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME || "techligence-content-index";
 
 let pineconeClient; // Declare a variable to hold the initialized Pinecone client

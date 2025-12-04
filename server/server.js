@@ -19,6 +19,7 @@ import { initializePinecone, ensurePineconeIndex } from './services/pineconeServ
 // Import routes
 import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/productRoutes.js";
+import productLikeRoutes from "./routes/productLikeRoutes.js";
 import blogRoutes from "./routes/blogRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import careerRoutes from "./routes/careerRoutes.js";
@@ -234,6 +235,7 @@ app.get("/debug", (req, res) => {
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/product-likes", productLikeRoutes);
 app.use("/api/blogposts", blogRoutes); // Changed from /api/blog
 app.use("/api/contact", contactRoutes);
 app.use("/api/career", careerRoutes);
