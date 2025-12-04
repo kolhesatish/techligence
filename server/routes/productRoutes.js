@@ -1,10 +1,30 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
+import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
 import Product from "../models/Products.js"; // Adjust path to your Product Mongoose model
 import { authenticateToken, authorizeRoles } from "../middleware/auth.js"; // Your authentication and authorization middleware
 import { updateSingleContentItem } from "../utils/contentIngestor.js"; // NEW: Import contentIngestor for RAG updates
+import { uploadImageToSupabase } from "../services/supabaseService.js"; // Import Supabase service
 
 const router = express.Router();
+
+// Configure multer for file uploads (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+});
 
 // --- Public Routes (e.g., for general product listing) ---
 
@@ -24,6 +44,53 @@ router.get("/", async (req, res) => {
 });
 
 // --- Admin-Only Routes ---
+
+// POST /upload-image - Upload product image to Supabase (Admin only)
+router.post(
+  "/upload-image",
+  authenticateToken,
+  authorizeRoles('admin'),
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No image file provided"
+        });
+      }
+
+      // Generate unique filename
+      const fileExtension = req.file.originalname.split('.').pop();
+      const fileName = `products/${uuidv4()}-${Date.now()}.${fileExtension}`;
+
+      // Upload to Supabase
+      const uploadResult = await uploadImageToSupabase(req.file, fileName);
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: uploadResult.error || "Failed to upload image to Supabase"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Image uploaded successfully",
+        data: {
+          url: uploadResult.url
+        }
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to upload image",
+        error: error.message
+      });
+    }
+  }
+);
 
 // GET /:productId - Get a single product by ID (for admin editing)
 router.get(
@@ -74,7 +141,15 @@ router.post(
     body("price").notEmpty().withMessage("Price is required"),
     body("priceValue").isNumeric().withMessage("Price value must be a number").notEmpty(),
     body("originalPrice").optional().isString().withMessage("Original price must be a string"),
-    body("image").notEmpty().withMessage("Image is required"),
+    body("image")
+      .notEmpty().withMessage("Image is required")
+      .custom((value) => {
+        // Accept Supabase URLs or regular URLs
+        if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'))) {
+          return true;
+        }
+        throw new Error("Image must be a valid URL (Supabase or other)");
+      }),
     body("category").notEmpty().withMessage("Category is required"),
     body("rating").isFloat({ min: 0, max: 5 }).optional().withMessage("Rating must be between 0 and 5"),
     body("reviews").isInt({ min: 0 }).optional().withMessage("Reviews must be a non-negative integer"),
@@ -101,8 +176,13 @@ router.post(
       const newProduct = new Product(req.body);
       await newProduct.save();
 
-      // NEW: Post-save hook for RAG
-      await updateSingleContentItem('product', newProduct, 'upsert');
+      // NEW: Post-save hook for RAG (optional - don't fail if Pinecone is not configured)
+      try {
+        await updateSingleContentItem('product', newProduct, 'upsert');
+      } catch (pineconeError) {
+        console.warn(" Pinecone update failed (non-critical):", pineconeError.message);
+        // Continue even if Pinecone update fails
+      }
 
       res.status(201).json({
         success: true,
@@ -128,7 +208,16 @@ router.put(
     body("price").optional().notEmpty().withMessage("Price cannot be empty"),
     body("priceValue").optional().isNumeric().withMessage("Price value must be a number"),
     body("originalPrice").optional().isString().withMessage("Original price must be a string"),
-    body("image").optional().notEmpty().withMessage("Image cannot be empty"),
+    body("image")
+      .optional()
+      .notEmpty().withMessage("Image cannot be empty")
+      .custom((value) => {
+        // Accept Supabase URLs or regular URLs
+        if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'))) {
+          return true;
+        }
+        throw new Error("Image must be a valid URL (Supabase or other)");
+      }),
     body("category").optional().notEmpty().withMessage("Category cannot be empty"),
     body("rating").optional().isFloat({ min: 0, max: 5 }).withMessage("Rating must be between 0 and 5"),
     body("reviews").optional().isInt({ min: 0 }).withMessage("Reviews must be a non-negative integer"),
@@ -170,8 +259,13 @@ router.put(
         return res.status(404).json({ success: false, message: "Product not found" });
       }
 
-      // NEW: Post-update hook for RAG
-      await updateSingleContentItem('product', updatedProduct, 'upsert');
+      // NEW: Post-update hook for RAG (optional - don't fail if Pinecone is not configured)
+      try {
+        await updateSingleContentItem('product', updatedProduct, 'upsert');
+      } catch (pineconeError) {
+        console.warn(" Pinecone update failed (non-critical):", pineconeError.message);
+        // Continue even if Pinecone update fails
+      }
 
       res.json({
         success: true,
@@ -200,11 +294,13 @@ router.delete(
         return res.status(404).json({ success: false, message: "Product not found" });
       }
 
-      // NEW: Post-delete hook for RAG
-      // Note: As discussed, direct deletion by sourceId prefix is complex without knowing all chunk IDs.
-      // For now, this will log a warning. Rely on full re-ingestion for cleanup or implement
-      // a more sophisticated deletion strategy if needed.
-      await updateSingleContentItem('product', deletedProduct, 'delete');
+      // NEW: Post-delete hook for RAG (optional - don't fail if Pinecone is not configured)
+      try {
+        await updateSingleContentItem('product', deletedProduct, 'delete');
+      } catch (pineconeError) {
+        console.warn(" Pinecone delete failed (non-critical):", pineconeError.message);
+        // Continue even if Pinecone delete fails
+      }
 
 
       res.json({

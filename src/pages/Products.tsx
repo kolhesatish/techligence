@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +12,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { useCartStore } from "@/store/cartStore";
 import ShoppingCartComponent from "@/components/ShoppingCart"; // Renamed to avoid conflict
+import { productsAPI } from "@/services/api";
+import { Loader2 } from "lucide-react";
 
 import {
   Bot,
@@ -33,16 +35,97 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface Product {
+  _id: string;
+  productId: number;
+  name: string;
+  description: string;
+  price: string;
+  originalPrice?: string;
+  priceValue: number;
+  image: string;
+  category: string;
+  specifications: {
+    speed?: string;
+    payload?: string;
+    range?: string;
+    battery?: string;
+  };
+  features: string[];
+  rating: number;
+  reviews: number;
+  inStock: boolean;
+  stockCount: number;
+  shippingTime: string;
+  warranty: string;
+}
+
 const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { addItem } = useCartStore();
 
-  // Helper to format prices for display in INR
-  const formatINRPrice = (price: number) => {
-    return new Intl.NumberFormat("en-IN", {
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productsAPI.getProducts();
+        if (response.data.success) {
+          setProducts(response.data.data || []);
+        } else {
+          setError("Failed to load products");
+        }
+      } catch (err: any) {
+        console.error("Error fetching products:", err);
+        setError(err.message || "Failed to load products");
+        toast.error("Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // Transform products to match the expected format
+  const robots = products.map((product) => {
+    // Extract numeric price from string (e.g., "$12,999" -> 12999)
+    const priceNum = product.priceValue || 0;
+    const originalPriceNum = product.originalPrice
+      ? parseFloat(product.originalPrice.replace(/[$,]/g, "")) || 0
+      : undefined;
+
+    return {
+      id: product.productId,
+      name: product.name,
+      category: product.category,
+      price: priceNum,
+      originalPrice: originalPriceNum,
+      rating: product.rating || 0,
+      reviews: product.reviews || 0,
+      image: product.image,
+      description: product.description,
+      features: product.features || [],
+      specs: product.specifications || {},
+      inStock: product.inStock !== undefined ? product.inStock : true,
+      stockCount: product.stockCount || 0,
+      shippingTime: product.shippingTime || "2-3 days",
+      warranty: product.warranty || "2 years warranty included",
+    };
+  });
+
+  // Helper to format prices for display
+  const formatPrice = (price: string | number) => {
+    if (typeof price === "string") {
+      return price; // Already formatted
+    }
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "INR",
+      currency: "USD",
     }).format(price);
   };
 
@@ -50,8 +133,8 @@ const Products = () => {
     addItem({
       id: robot.id,
       name: robot.name,
-      price: robot.price, // Now robot.price is already a number (INR)
-      priceValue: robot.price, // priceValue directly uses the INR number
+      price: robot.price,
+      priceValue: robot.price,
       image: robot.image,
       specifications: robot.specs,
     });
@@ -72,133 +155,7 @@ const Products = () => {
     });
   };
 
-  // Robot data with prices in INR (approx. 1 USD = 83 INR)
-  const robots = [
-    {
-      id: 1,
-      name: "Techligence Explorer Pro",
-      category: "exploration",
-      price: 10789, // Was $12,999 USD -> 12999 * 83 INR
-      originalPrice: 13279, // Was $15,999 USD -> 15999 * 83 INR
-      rating: 4.8,
-      reviews: 324,
-      image: "🤖",
-      description:
-        "Advanced 4WD exploration robot with AI-powered autonomous navigation and environmental mapping capabilities.",
-      features: [
-        "360° LiDAR Mapping",
-        "AI Obstacle Avoidance",
-        "12-Hour Battery Life",
-        "Weather Resistant IP67",
-        "Real-time Data Streaming",
-      ],
-      specs: {
-        speed: "5 m/s",
-        payload: "15 kg",
-        range: "10 km",
-        battery: "12 hours",
-      },
-      badge: "Best Seller",
-      badgeVariant: "default" as const,
-      inStock: true,
-      stockCount: 12,
-      shippingTime: "2-3 days",
-      warranty: "2 years",
-    },
-    {
-      id: 2,
-      name: "Industrial Titan X1",
-      category: "industrial",
-      price: 20749, // Was $24,999 USD -> 24999 * 83 INR
-      originalPrice: 24849, // Was $29,999 USD -> 29999 * 83 INR
-      rating: 4.9,
-      reviews: 156,
-      image: "🏗️",
-      description:
-        "Heavy-duty 4WD industrial robot designed for manufacturing environments with precision control and safety systems.",
-      features: [
-        "50kg Payload Capacity",
-        "Precision Actuators",
-        "Safety Monitoring",
-        "Integration APIs",
-        "24/7 Operation Ready",
-      ],
-      specs: {
-        speed: "3 m/s",
-        payload: "50 kg",
-        range: "Unlimited",
-        battery: "Wired/Battery",
-      },
-      badge: "Enterprise",
-      badgeVariant: "secondary" as const,
-      inStock: true,
-      stockCount: 8,
-      shippingTime: "5-7 days",
-      warranty: "3 years",
-    },
-    {
-      id: 3,
-      name: "Swift Scout V2",
-      category: "surveillance",
-      price: 74691, // Was $8,999 USD -> 8999 * 83 INR
-      originalPrice: 82991, // Was $9,999 USD -> 9999 * 83 INR
-      rating: 4.7,
-      reviews: 89,
-      image: "👁️",
-      description:
-        "Compact 4WD surveillance robot with advanced camera systems and silent operation for security applications.",
-      features: [
-        "4K Night Vision",
-        "Silent Operation",
-        "Motion Detection",
-        "Remote Control",
-        "Cloud Recording",
-      ],
-      specs: {
-        speed: "8 m/s",
-        payload: "5 kg",
-        range: "5 km",
-        battery: "8 hours",
-      },
-      badge: "New",
-      badgeVariant: "destructive" as const,
-      inStock: true,
-      stockCount: 15,
-      shippingTime: "1-2 days",
-      warranty: "1 year",
-    },
-    {
-      id: 4,
-      name: "Research Rover Alpha",
-      category: "research",
-      price: 15769, // Was $18,999 USD -> 18999 * 83 INR
-      originalPrice: 18259, // Was $21,999 USD -> 21999 * 83 INR
-      rating: 4.6,
-      reviews: 67,
-      image: "🔬",
-      description:
-        "Scientific 4WD research robot equipped with modular sensor arrays and data collection systems for laboratory use.",
-      features: [
-        "Modular Sensors",
-        "Data Logging",
-        "Sterile Operation",
-        "Precise Positioning",
-        "Remote Monitoring",
-      ],
-      specs: {
-        speed: "2 m/s",
-        payload: "20 kg",
-        range: "Indoor",
-        battery: "16 hours",
-      },
-      badge: "Scientific",
-      badgeVariant: "outline" as const,
-      inStock: true,
-      stockCount: 5,
-      shippingTime: "3-5 days",
-      warranty: "2 years",
-    },
-  ];
+  // Products are now fetched from API and transformed above
 
   const categories = [
     { id: "all", name: "All Products", count: robots.length },
@@ -305,15 +262,35 @@ const Products = () => {
       {/* Products Grid */}
       <section className="py-16 flex-1">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-8">
-            {filteredRobots.map((robot) => (
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2 text-muted-foreground">Loading products...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+          ) : filteredRobots.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground mb-4">No products found</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedCategory !== "all"
+                  ? `No products in the ${selectedCategory} category.`
+                  : "No products available at the moment."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-8">
+              {filteredRobots.map((robot) => (
               <Card
                 key={robot.id}
                 className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
               >
                 <CardHeader className="relative">
                   <div className="flex items-start justify-between mb-4">
-                    <Badge variant={robot.badgeVariant}>{robot.badge}</Badge>
+                    {/* Badge removed - can be added back if needed in product data */}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
@@ -335,8 +312,16 @@ const Products = () => {
                     </div>
                   </div>
 
-                  <div className="w-full h-48 bg-gradient-to-br from-accent/20 to-primary/10 rounded-lg flex items-center justify-center mb-4 relative">
-                    <div className="text-6xl">{robot.image}</div>
+                  <div className="w-full h-48 bg-gradient-to-br from-accent/20 to-primary/10 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden">
+                    {robot.image && (robot.image.startsWith('http') || robot.image.startsWith('https')) ? (
+                      <img
+                        src={robot.image}
+                        alt={robot.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-6xl">{robot.image || "🤖"}</div>
+                    )}
                     {!robot.inStock && (
                       <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
                         <Badge variant="destructive">Out of Stock</Badge>
@@ -362,12 +347,11 @@ const Products = () => {
 
                   <div className="flex items-center gap-2 mb-4">
                     <div className="text-2xl font-bold text-primary">
-                      {formatINRPrice(robot.price)} {/* Format for display */}
+                      {typeof robot.price === 'string' ? robot.price : formatPrice(robot.price)}
                     </div>
                     {robot.originalPrice && (
                       <div className="text-lg text-muted-foreground line-through">
-                        {formatINRPrice(robot.originalPrice)}{" "}
-                        {/* Format for display */}
+                        {typeof robot.originalPrice === 'string' ? robot.originalPrice : formatPrice(robot.originalPrice)}
                       </div>
                     )}
                   </div>
@@ -473,7 +457,7 @@ const Products = () => {
                     <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
                       Starting at{" "}
                       <span className="font-bold">
-                        {formatINRPrice(Math.round(robot.price / 24))}
+                        {formatPrice(typeof robot.price === 'number' ? Math.round(robot.price / 24) : robot.price)}
                         /month
                       </span>
                     </div>
@@ -483,18 +467,7 @@ const Products = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-
-          {filteredRobots.length === 0 && (
-            <div className="text-center py-16">
-              <Bot className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">
-                No robots found in this category
-              </h3>
-              <p className="text-muted-foreground">
-                Try selecting a different category to see our available robots.
-              </p>
+              ))}
             </div>
           )}
         </div>

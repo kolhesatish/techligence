@@ -19,6 +19,8 @@ import NotFound from "./pages/NotFound";
 import NewProductPage from "./pages/NewProductPage";
 import NewBlogPostPage from "./pages/NewBlogPostPage";
 import CreateJobListingForm from "./components/CreateJobListingForm";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminProductForm from "./pages/AdminProductForm";
 import About from "./pages/About";
 import Chatbot from "./components/Chatbot";
 import MLTools from "./pages/MLTools"; // Import MLTools
@@ -93,14 +95,21 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:postId" element={<BlogPostPage />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/blog/new" element={<NewBlogPostPage />} />
               <Route
                 path="/admin/blog/edit/:postId"
                 element={<NewBlogPostPage />}
               />
-              <Route path="/admin/products/new" element={<NewProductPage />} />
+              <Route path="/admin/products/new" element={<AdminProductForm />} />
               <Route
                 path="/admin/products/edit/:productId"
+                element={<AdminProductForm />}
+              />
+              {/* Legacy routes - keeping for backward compatibility */}
+              <Route path="/admin/products/legacy/new" element={<NewProductPage />} />
+              <Route
+                path="/admin/products/legacy/edit/:productId"
                 element={<NewProductPage />}
               />
               <Route

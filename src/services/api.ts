@@ -167,6 +167,15 @@ export const productsAPI = {
 
   getProducts: () =>
     apiCall(() => api.get("/products")),
+
+  uploadProductImage: (formData: FormData) =>
+    apiCall(() =>
+      api.post("/products/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+    ),
 };
 
 // Blog API (existing)
