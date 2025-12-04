@@ -3,6 +3,14 @@ import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
+// Log API configuration on initialization (only in development)
+if (import.meta.env.DEV) {
+  console.log("🔧 Frontend API Configuration:");
+  console.log("   API Base URL:", API_BASE_URL);
+  console.log("   VITE_API_URL env:", import.meta.env.VITE_API_URL || "(not set, using '/api')");
+  console.log("   Note: In dev mode, Vite proxy forwards /api to http://localhost:5050");
+}
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -31,7 +39,24 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
+      // Don't redirect if we're already on the auth page
+      const currentPath = window.location.pathname;
+      if (currentPath === "/auth" || currentPath.startsWith("/auth/")) {
+        // Don't redirect - let the component handle the error
+        return Promise.reject(error);
+      }
+      
+      // Don't redirect if the error is about account activation (expected during login/registration)
+      const errorMessage = error.response?.data?.message || "";
+      if (errorMessage.includes("not activated") || 
+          errorMessage.includes("activated") || 
+          errorMessage.includes("OTP") ||
+          errorMessage.includes("verification")) {
+        // Don't redirect - let the component handle the OTP flow
+        return Promise.reject(error);
+      }
+      
+      // Clear token and redirect to login for actual auth failures
       localStorage.removeItem("auth_token");
       localStorage.removeItem("user_data"); // Assuming user_data is also stored
       window.location.href = "/auth";
@@ -47,9 +72,29 @@ const apiCall = async (apiFunction: () => Promise<any>) => {
   } catch (error: any) {
     // Log network errors explicitly for debugging
     if (error.code === "ERR_NETWORK" || error.code === "ECONNREFUSED") {
-      console.error("Network error: Backend is unreachable or connection refused.", error);
+      console.error("Network Error: Backend is unreachable or connection refused.");
+      console.error("   Make sure the backend server is running on http://localhost:5050");
+      console.error("   Check that CORS is properly configured on the backend");
+      console.error("   Error details:", error.message);
+    } else if (error.response) {
+      // Server responded with error status
+      console.error(`API Error [${error.response.status}]:`, error.response.data?.message || error.message);
+    } else {
+      console.error("API Error:", error.message);
     }
     throw error; // Re-throw the actual error for the calling function to handle
+  }
+};
+
+// Test backend connection (useful for debugging)
+export const testBackendConnection = async () => {
+  try {
+    const response = await api.get("/health");
+    console.log("Backend connection successful:", response.data);
+    return true;
+  } catch (error: any) {
+    console.error("Backend connection failed:", error.message);
+    return false;
   }
 };
 
@@ -93,6 +138,16 @@ export const authAPI = {
   refreshToken: () =>
     apiCall(
       () => api.post("/auth/refresh"),
+    ),
+
+  verifyOTP: (email: string, otp: string) =>
+    apiCall(
+      () => api.post("/auth/verify-otp", { email, otp }),
+    ),
+
+  resendOTP: (email: string) =>
+    apiCall(
+      () => api.post("/auth/resend-otp", { email }),
     ),
 };
 

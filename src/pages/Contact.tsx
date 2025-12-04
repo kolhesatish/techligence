@@ -72,13 +72,13 @@ const Contact = () => {
           message: "",
           inquiryType: "",
         });
-        console.log("✅ Contact form submitted successfully:", response.data);
+        console.log("Contact form submitted successfully:", response.data);
       } else {
         // If backend sends a specific error message, use it
         throw new Error(response.data.message || "Submission failed");
       }
     } catch (error: any) {
-      console.error("❌ Contact form submission error:", error);
+      console.error("Contact form submission error:", error);
       // Display specific backend error message if available, otherwise a generic one
       toast.error(error.response?.data?.message || "Error sending your message. Please try again.");
     } finally {

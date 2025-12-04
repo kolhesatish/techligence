@@ -36,7 +36,7 @@ const seedDatabase = async () => {
 
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
 
     // Clear existing users
     console.log("🗑️  Clearing existing users...");
@@ -45,19 +45,19 @@ const seedDatabase = async () => {
     // Create new users
     console.log("👤 Creating users...");
     const createdUsers = await User.create(seedUsers);
-    console.log(`✅ Created ${createdUsers.length} users`);
+    console.log(`Created ${createdUsers.length} users`);
 
     console.log("\n🔑 Test Accounts:");
     createdUsers.forEach((user) => {
       console.log(`   📧 ${user.email} (${user.role})`);
-      console.log(`   🔒 Password: Password123`);
+      console.log(`   Password: Password123`);
     });
 
     await mongoose.connection.close();
     console.log("📴 Database connection closed");
     console.log("🎉 User seeding completed successfully!");
   } catch (error) {
-    console.error("❌ Seeding failed:", error);
+    console.error("Seeding failed:", error);
     process.exit(1);
   }
 };

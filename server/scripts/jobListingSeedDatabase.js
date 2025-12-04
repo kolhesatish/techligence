@@ -81,7 +81,7 @@ const seedJobListingDatabase = async () => {
 
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
 
     // Clear existing job listings
     console.log("🗑️  Clearing existing job listings...");
@@ -90,7 +90,7 @@ const seedJobListingDatabase = async () => {
     // Create new job listings
     console.log("💼 Creating job listings...");
     const createdJobListings = await JobListing.create(seedJobListings);
-    console.log(`✅ Created ${createdJobListings.length} job listings`);
+    console.log(`Created ${createdJobListings.length} job listings`);
 
     console.log("\n📋 Seeding completed for the following job listings:");
     createdJobListings.forEach((job) => {
@@ -101,7 +101,7 @@ const seedJobListingDatabase = async () => {
     console.log("📴 Database connection closed");
     console.log("🎉 Job listing seeding completed successfully!");
   } catch (error) {
-    console.error("❌ Job listing seeding failed:", error);
+    console.error("Job listing seeding failed:", error);
     process.exit(1);
   }
 };

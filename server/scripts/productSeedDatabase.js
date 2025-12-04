@@ -131,7 +131,7 @@ const seedProductDatabase = async () => {
 
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
 
     // Clear existing products
     console.log("🗑️  Clearing existing products...");
@@ -140,7 +140,7 @@ const seedProductDatabase = async () => {
     // Create new products
     console.log("🤖 Creating products...");
     const createdProducts = await Product.create(seedProducts);
-    console.log(`✅ Created ${createdProducts.length} products`);
+    console.log(`Created ${createdProducts.length} products`);
 
     console.log("\n📋 Seeding completed for the following products:");
     createdProducts.forEach((product) => {
@@ -151,7 +151,7 @@ const seedProductDatabase = async () => {
     console.log("📴 Database connection closed");
     console.log("🎉 Product seeding completed successfully!");
   } catch (error) {
-    console.error("❌ Product seeding failed:", error);
+    console.error("Product seeding failed:", error);
     process.exit(1);
   }
 };

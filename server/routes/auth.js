@@ -9,18 +9,33 @@ import { sendOTP, generateOTP, saveOTP, verifyOTP } from "../services/otpService
 
 const router = express.Router();
 
-// Rate limiting for auth routes
+// Rate limiting for auth routes - disabled in development
+const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: isDevelopment ? 1000 : 5, // Very high limit in dev, strict in production
   message: "Too many authentication attempts, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting in development mode
+    return isDevelopment;
+  },
 });
 
 // Generate JWT token
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+  const jwtSecret = process.env.JWT_SECRET;
+  
+  if (!jwtSecret) {
+    console.error("JWT_SECRET is not set in environment variables!");
+    console.error("   Please create a .env file in the server directory with:");
+    console.error("   JWT_SECRET=your-super-secret-jwt-key-here");
+    throw new Error("JWT_SECRET environment variable is required. Please set it in your .env file.");
+  }
+  
+  return jwt.sign({ userId }, jwtSecret, {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 };
@@ -97,13 +112,29 @@ router.post(
       // Send OTP
       const otp = generateOTP();
       saveOTP(email, otp);
-      await sendOTP(email, otp);
-
-      res.status(201).json({
-        success: true,
-        message: "User registered. OTP sent to email.",
-        data: { userId: user._id },
-      });
+      
+      try {
+        await sendOTP(email, otp);
+        res.status(201).json({
+          success: true,
+          message: "User registered. OTP sent to email.",
+          data: { userId: user._id },
+        });
+      } catch (emailError) {
+        // In development, continue even if email fails (OTP is logged to console)
+        const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+        if (isDevelopment) {
+          console.warn(" Email sending failed, but continuing in development mode");
+          res.status(201).json({
+            success: true,
+            message: "User registered. Check console for OTP code (development mode).",
+            data: { userId: user._id, otp: otp }, // Include OTP in dev mode for testing
+          });
+        } else {
+          // In production, return error if email fails
+          throw emailError;
+        }
+      }
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({
@@ -170,12 +201,27 @@ router.post(
         // Resend OTP if the user is not active
         const otp = generateOTP();
         saveOTP(email, otp);
-        await sendOTP(email, otp);
-
-        return res.status(401).json({
-          success: false,
-          message: "Account is not activated. A new OTP has been sent to your email.",
-        });
+        
+        try {
+          await sendOTP(email, otp);
+          return res.status(401).json({
+            success: false,
+            message: "Account is not activated. A new OTP has been sent to your email.",
+          });
+        } catch (emailError) {
+          // In development, continue even if email fails
+          const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+          if (isDevelopment) {
+            console.warn(" Email sending failed, but continuing in development mode");
+            return res.status(401).json({
+              success: false,
+              message: "Account is not activated. Check console for OTP code (development mode).",
+              otp: otp, // Include OTP in dev mode for testing
+            });
+          } else {
+            throw emailError;
+          }
+        }
       }
 
       // Verify password
@@ -458,9 +504,23 @@ router.post("/resend-otp", async (req, res) => {
 
     const otp = generateOTP();
     saveOTP(email, otp);
-    await sendOTP(email, otp);
-
-    res.json({ success: true, message: "A new OTP has been sent to your email." });
+    
+    try {
+      await sendOTP(email, otp);
+      res.json({ success: true, message: "A new OTP has been sent to your email." });
+    } catch (emailError) {
+      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+      if (isDevelopment) {
+        console.warn(" Email sending failed, but continuing in development mode");
+        res.json({ 
+          success: true, 
+          message: "Check console for OTP code (development mode).",
+          otp: otp // Include OTP in dev mode for testing
+        });
+      } else {
+        throw emailError;
+      }
+    }
   } catch (error) {
     console.error("Resend OTP error:", error);
     res.status(500).json({ success: false, message: "Failed to resend OTP." });
@@ -478,9 +538,23 @@ router.post("/forgot-password", async (req, res) => {
 
     const otp = generateOTP();
     saveOTP(email, otp);
-    await sendOTP(email, otp);
-
-    res.json({ success: true, message: "An OTP has been sent to your email to reset your password." });
+    
+    try {
+      await sendOTP(email, otp);
+      res.json({ success: true, message: "An OTP has been sent to your email to reset your password." });
+    } catch (emailError) {
+      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+      if (isDevelopment) {
+        console.warn(" Email sending failed, but continuing in development mode");
+        res.json({ 
+          success: true, 
+          message: "Check console for OTP code (development mode).",
+          otp: otp // Include OTP in dev mode for testing
+        });
+      } else {
+        throw emailError;
+      }
+    }
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ success: false, message: "Failed to send password reset OTP." });

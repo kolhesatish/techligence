@@ -16,13 +16,13 @@ export const testMediaPipeAvailability = async (): Promise<{
     });
 
     if (hands) {
-      console.log("✅ MediaPipe is available and working");
+      console.log("MediaPipe is available and working");
       return { available: true };
     }
 
     return { available: false, error: "Failed to create MediaPipe instance" };
   } catch (error: any) {
-    console.warn("⚠️ MediaPipe not available:", error.message);
+    console.warn("MediaPipe not available:", error.message);
     return { available: false, error: error.message };
   }
 };
@@ -44,10 +44,10 @@ export const testCameraAvailability = async (): Promise<{
     // Stop the stream immediately after test
     stream.getTracks().forEach((track) => track.stop());
 
-    console.log("✅ Camera is available");
+    console.log("Camera is available");
     return { available: true };
   } catch (error: any) {
-    console.warn("⚠️ Camera not available:", error.message);
+    console.warn("Camera not available:", error.message);
     return { available: false, error: error.message };
   }
 };

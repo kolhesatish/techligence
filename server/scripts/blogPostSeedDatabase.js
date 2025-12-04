@@ -135,7 +135,7 @@ const seedBlogPostDatabase = async () => {
 
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
 
     // Clear existing blog posts
     console.log("🗑️  Clearing existing blog posts...");
@@ -144,7 +144,7 @@ const seedBlogPostDatabase = async () => {
     // Create new blog posts
     console.log("✍️ Creating blog posts...");
     const createdBlogPosts = await BlogPost.create(seedBlogPosts);
-    console.log(`✅ Created ${createdBlogPosts.length} blog posts`);
+    console.log(`Created ${createdBlogPosts.length} blog posts`);
 
     console.log("\n📋 Seeding completed for the following blog posts:");
     createdBlogPosts.forEach((post) => {
@@ -155,7 +155,7 @@ const seedBlogPostDatabase = async () => {
     console.log("📴 Database connection closed");
     console.log("🎉 Blog post seeding completed successfully!");
   } catch (error) {
-    console.error("❌ Blog post seeding failed:", error);
+    console.error("Blog post seeding failed:", error);
     process.exit(1);
   }
 };

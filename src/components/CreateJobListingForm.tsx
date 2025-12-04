@@ -88,7 +88,7 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
             throw new Error(response.data.message || "Failed to fetch job listing for editing.");
           }
         } catch (err: any) {
-          console.error("❌ Error fetching job listing for edit:", err);
+          console.error("Error fetching job listing for edit:", err);
           setError(err.response?.data?.message || err.message || "Failed to load job details.");
           toast.error("Failed to load job details for editing.");
           onClose(); // Close modal if job data cannot be loaded
@@ -177,7 +177,7 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
         throw new Error(response.data.message || `Failed to ${currentJobId ? 'update' : 'create'} job listing.`);
       }
     } catch (err: any) {
-      console.error(`❌ Error ${currentJobId ? 'updating' : 'creating'} job listing:`, err);
+      console.error(`Error ${currentJobId ? 'updating' : 'creating'} job listing:`, err);
       setError(err.response?.data?.message || err.message || `An error occurred while ${currentJobId ? 'updating' : 'creating'} the job listing. Please try again.`);
       toast.error(err.response?.data?.message || err.message || `Failed to ${currentJobId ? 'update' : 'create'} job listing.`);
     } finally {

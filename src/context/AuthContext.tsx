@@ -126,11 +126,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(response.data.message || "Login failed");
       }
     } catch (error: any) {
-      throw new Error(
-        error.response?.data?.message || 
+      // Preserve the original error with response data for OTP handling
+      const errorMessage = error.response?.data?.message || 
         error.message ||
-        "Login failed. Please try again."
-      );
+        "Login failed. Please try again.";
+      
+      const loginError: any = new Error(errorMessage);
+      loginError.response = error.response; // Preserve response for OTP detection
+      throw loginError;
     }
   };
 
@@ -143,15 +146,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
       if (response.data.success) {
-        const { user: newUser, token: authToken } = response.data.data;
-
-        localStorage.setItem("auth_token", authToken);
-        setToken(authToken);
-        setUser(newUser);
+        // Check if user and token are in response (OTP already verified)
+        if (response.data.data?.user && response.data.data?.token) {
+          const { user: newUser, token: authToken } = response.data.data;
+          localStorage.setItem("auth_token", authToken);
+          setToken(authToken);
+          setUser(newUser);
+        }
+        // If OTP is required, return the response so the UI can handle it
+        return response;
       } else {
         throw new Error(response.data.message || "Registration failed");
       }
     } catch (error: any) {
+      // If it's a 201 status (created but needs OTP), return the response
+      if (error.response?.status === 201 && error.response?.data?.success) {
+        return error.response;
+      }
       throw new Error(
         error.response?.data?.message ||
         error.message ||

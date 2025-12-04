@@ -34,7 +34,7 @@
     <h1>🤖 RoboTech Debug Page</h1>
 
     <div class="status success">
-      ✅ <strong>Static Files Working</strong> - This page loads correctly
+      <strong>Static Files Working</strong> - This page loads correctly
     </div>
 
     <div class="status info">
@@ -92,24 +92,24 @@
             if (response.ok) {
               reactStatus.className = "status success";
               reactStatus.innerHTML =
-                "✅ <strong>React App</strong> - Main route accessible";
+                "<strong>React App</strong> - Main route accessible";
             } else {
               reactStatus.className = "status error";
-              reactStatus.innerHTML = `❌ <strong>React App Error</strong> - Status: ${response.status}`;
+              reactStatus.innerHTML = `<strong>React App Error</strong> - Status: ${response.status}`;
             }
           })
           .catch((error) => {
             reactStatus.className = "status error";
-            reactStatus.innerHTML = `❌ <strong>React App Error</strong> - ${error.message}`;
+            reactStatus.innerHTML = `<strong>React App Error</strong> - ${error.message}`;
           });
       }, 1000);
 
       // Display current URL info
       document.body.innerHTML += `
             <div class="status info">
-                🌐 <strong>Current URL:</strong> ${window.location.href}<br>
-                🏠 <strong>Origin:</strong> ${window.location.origin}<br>
-                📡 <strong>Protocol:</strong> ${window.location.protocol}
+                <strong>Current URL:</strong> ${window.location.href}<br>
+                <strong>Origin:</strong> ${window.location.origin}<br>
+                <strong>Protocol:</strong> ${window.location.protocol}
             </div>
         `;
     </script>

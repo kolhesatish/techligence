@@ -27,8 +27,37 @@ import adminIngestionRoutes from "./routes/adminIngestionRoutes.js"; // NEW: Imp
 import otpRoutes from "./routes/otp.js";
 import paymentRoutes from "./routes/payment.js";
 
-// Load environment variables
-dotenv.config();
+// Get __dirname equivalent for ES modules (used for both .env and static files)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from server/.env file
+const envPath = path.join(__dirname, '.env');
+const envResult = dotenv.config({ path: envPath });
+
+// Log if .env file was loaded successfully
+if (envResult.error) {
+  console.warn(' Warning: .env file not found at:', envPath);
+  console.warn('   Make sure you have a .env file in the server directory');
+} else {
+  console.log('Environment variables loaded from:', envPath);
+}
+
+// Validate critical environment variables
+if (!process.env.JWT_SECRET) {
+  console.error('\nCRITICAL ERROR: JWT_SECRET is not set!');
+  console.error('   Authentication will fail without this.');
+  console.error('\n   Please create a .env file in the server directory with:');
+  console.error('   JWT_SECRET=your-super-secret-jwt-key-here');
+  console.error('\n   Example .env file:');
+  console.error('   PORT=5050');
+  console.error('   NODE_ENV=development');
+  console.error('   MONGODB_URI=mongodb://localhost:27017/techligence');
+  console.error('   JWT_SECRET=techligence-super-secret-jwt-key-2024-change-in-production');
+  console.error('   JWT_EXPIRES_IN=7d');
+  console.error('\n');
+  process.exit(1);
+}
 
 const app = express();
 const server = createServer(app);
@@ -36,6 +65,9 @@ const server = createServer(app);
 const PORT = process.env.PORT || 5050;
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/techligence";
+
+console.log("MONGODB_URI:", process.env.MONGODB_URI || "(not set - using default)");
+console.log("NODE_ENV:", process.env.NODE_ENV || "(not set)");
 
 // Security middleware - relaxed for development
 app.use(
@@ -46,17 +78,29 @@ app.use(
   }),
 );
 
-// Rate limiting - more permissive for development
+// Rate limiting - disabled in development, more permissive in production
+const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isDevelopment ? 10000 : 1000, // Very high limit in dev, normal in production
   message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
-    return process.env.NODE_ENV === "development";
+    // Skip rate limiting in development mode
+    return isDevelopment;
   },
 });
 
+// Always apply the limiter (it will skip internally in development)
 app.use(limiter);
+
+if (isDevelopment) {
+  console.log(" Rate limiting: DISABLED (development mode)");
+} else {
+  console.log("Rate limiting: ENABLED (production mode)");
+}
 
 // CORS configuration by default
 /*app.use(
@@ -76,10 +120,18 @@ const allowedOriginsFromEnv = process.env.CORS_ALLOWED_ORIGINS
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:8081",
   "http://localhost:8080",
   process.env.CLIENT_URL,
   ...allowedOriginsFromEnv,
-];
+].filter(Boolean); // Remove any undefined values
+
+// Log CORS configuration on startup
+console.log("CORS Configuration:");
+console.log("   Allowed Origins:", allowedOrigins.length > 0 ? allowedOrigins.join(", ") : "(none configured)");
+if (allowedOriginsFromEnv.length > 0) {
+  console.log("   From Environment:", allowedOriginsFromEnv.join(", "));
+}
 
 app.use(
   cors({
@@ -98,7 +150,8 @@ app.use(
         }
       } catch (e) { /* Malformed origin, fall through to error */ }
 
-      return callback(new Error(`❌ CORS error: The origin "${origin}" is not allowed.`));
+      console.warn(` CORS blocked request from origin: ${origin}`);
+      return callback(new Error(`CORS error: The origin "${origin}" is not allowed.`));
     },
     credentials: true,
   })
@@ -112,9 +165,7 @@ app.use(morgan("combined"));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Static file serving
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Static file serving (__dirname already declared above)
 
 if (process.env.NODE_ENV === "production") {
   const buildPath = path.join(__dirname, "../dist");
@@ -143,7 +194,7 @@ app.get("/health", (req, res) => {
 
 // Root path handler for development
 app.get("/", (req, res) => {
-  console.log("🏠 Root path accessed");
+  console.log("Root path accessed");
   if (process.env.NODE_ENV !== "production") {
     res.json({
       message: "Techligence Backend API",
@@ -168,7 +219,7 @@ app.get("/", (req, res) => {
 
 // Debug route to test 403 issues
 app.get("/debug", (req, res) => {
-  console.log("🐛 Debug route accessed");
+  console.log("Debug route accessed");
   res.json({
     message: "Debug endpoint working",
     timestamp: new Date().toISOString(),
@@ -217,7 +268,7 @@ app.get("*", (req, res) => {
 
   // First, check if the request is for an API endpoint that wasn't found.
   if (req.path.startsWith("/api/")) {
-    console.warn(`❌ 404 - API route not found: ${req.method} ${req.path}`);
+    console.warn(`404 - API route not found: ${req.method} ${req.path}`);
     return res.status(404).json({
       success: false,
       message: "API route not found",
@@ -234,7 +285,7 @@ app.get("*", (req, res) => {
     res.sendFile(indexPath);
   } else {
     // This part is crucial for debugging deployment issues.
-    console.error(`❌ SPA Fallback Error: index.html not found at ${indexPath}`);
+    console.error(`SPA Fallback Error: index.html not found at ${indexPath}`);
     console.error("This likely means the frontend application has not been built or is not in the correct location.");
     res.status(404).json({
         success: false,
@@ -254,11 +305,11 @@ const startServer = () => {
     // handle specific listen errors with friendly messages
     switch (error.code) {
       case "EACCES":
-        console.error(`❌ Port ${PORT} requires elevated privileges.`);
+        console.error(`Port ${PORT} requires elevated privileges.`);
         process.exit(1);
         break;
       case "EADDRINUSE":
-        console.error(`❌ Port ${PORT} is already in use. Please stop the other process or use a different port.`);
+        console.error(`Port ${PORT} is already in use. Please stop the other process or use a different port.`);
         process.exit(1);
         break;
       default:
@@ -267,8 +318,23 @@ const startServer = () => {
   });
 
   server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🌐 Allowed Client Origins: ${allowedOrigins.join(", ")}`);
+    console.log(`\nBackend Server Started Successfully!`);
+    console.log(`   Port: ${PORT}`);
+    console.log(`   API Base URL: http://localhost:${PORT}/api`);
+    console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`\nFrontend Integration:`);
+    console.log(`   Frontend should connect to: http://localhost:${PORT}/api`);
+    console.log(`   Or use Vite proxy: /api (proxies to http://localhost:${PORT})`);
+    console.log(`   Allowed CORS Origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(", ") : "None"}`);
+    console.log(`\nAPI Endpoints Available:`);
+    console.log(`   - POST   /api/auth/register`);
+    console.log(`   - POST   /api/auth/login`);
+    console.log(`   - GET    /api/products`);
+    console.log(`   - GET    /api/blogposts`);
+    console.log(`   - POST   /api/contact`);
+    console.log(`   - POST   /api/career/apply`);
+    console.log(`   - POST   /api/chatbot/message`);
+    console.log(`\n`);
   });
 };
 
@@ -288,23 +354,23 @@ const connectWithTimeout = async () => {
 
 connectWithTimeout()
   .then(async () => { // Made the callback async to use await
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
     // Initialize Pinecone Client and Ensure Index Exists AFTER MongoDB connection
     // The dimension (768) should match the embedding model you are using (e.g., Nomic Embed)
     try {
       await initializePinecone(); // Initialize the Pinecone client
       await ensurePineconeIndex(768); // Ensure your Pinecone index exists with the correct dimension
-      console.log("✅ Pinecone client and index ready.");
+      console.log("Pinecone client and index ready.");
     } catch (pineconeError) {
-      console.error("❌ Failed to initialize Pinecone or ensure index:", pineconeError);
-      console.warn("⚠️  Pinecone functionality may be limited or unavailable.");
+      console.error("Failed to initialize Pinecone or ensure index:", pineconeError);
+      console.warn(" Pinecone functionality may be limited or unavailable.");
       // Do NOT exit process here, allow server to start even if Pinecone fails
     }
     startServer();
   })
   .catch((err) => {
-    console.warn("⚠️  MongoDB connection failed:", err.message);
-    console.log("🔄 Starting in demo mode without database...");
+    console.warn(" MongoDB connection failed:", err.message);
+    console.log("Starting in demo mode without database...");
 
     global.demoMode = true;
     startServer();
@@ -312,7 +378,7 @@ connectWithTimeout()
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("🛑 SIGTERM received, shutting down gracefully...");
+  console.log(" SIGTERM received, shutting down gracefully...");
   server.close(() => {
     mongoose.connection.close();
     process.exit(0);
@@ -320,7 +386,7 @@ process.on("SIGTERM", () => {
 });
 
 process.on("SIGINT", () => {
-  console.log("🛑 SIGINT received, shutting down gracefully...");
+  console.log(" SIGINT received, shutting down gracefully...");
   server.close(() => {
     mongoose.connection.close();
     process.exit(0);

@@ -249,12 +249,12 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({
       if (response.data.success) {
         setIsSubmitted(true);
         toast.success(response.data.message || "Application submitted successfully!");
-        console.log("✅ Application submitted successfully:", response.data);
+        console.log("Application submitted successfully:", response.data);
       } else {
         throw new Error(response.data.message || "Submission failed");
       }
     } catch (error: any) {
-      console.error("❌ Application submission error:", error);
+      console.error("Application submission error:", error);
       toast.error(error.response?.data?.message || "Error submitting application. Please try again.");
     } finally {
       setIsSubmitting(false);

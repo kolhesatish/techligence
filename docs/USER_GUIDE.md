@@ -15,7 +15,7 @@ Welcome to Techligence! This guide will help you navigate and make the most of o
 - [Account Management](#account-management)
 - [Troubleshooting](#troubleshooting)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Welcome to Techligence
 Techligence is a comprehensive robotics platform that combines:

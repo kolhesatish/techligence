@@ -4,7 +4,7 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
-console.log("🚀 Building RoboTech for production demo...");
+console.log("Building RoboTech for production demo...");
 
 // Set environment variables for demo build
 process.env.VITE_DEMO_MODE = "true";
@@ -49,15 +49,15 @@ try {
     JSON.stringify(demoConfig, null, 2),
   );
 
-  console.log("✅ Build completed successfully!");
+  console.log("Build completed successfully!");
   console.log("📁 Demo files are in the 'dist' folder");
-  console.log("🌐 Deploy the 'dist' folder to any static hosting service");
+  console.log("Deploy the 'dist' folder to any static hosting service");
   console.log("");
   console.log("🎯 Demo Features:");
   demoConfig.features.forEach((feature) => {
     console.log(`   • ${feature}`);
   });
 } catch (error) {
-  console.error("❌ Build failed:", error.message);
+  console.error("Build failed:", error.message);
   process.exit(1);
 }

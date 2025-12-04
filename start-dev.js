@@ -7,7 +7,7 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-console.log("🚀 Starting both frontend and backend servers...");
+console.log("Starting both frontend and backend servers...");
 
 // Start backend server
 const backendProcess = spawn("npm", ["run", "dev"], {
@@ -56,21 +56,21 @@ frontendProcess.on("close", (code) => {
 
 // Handle termination
 process.on("SIGINT", () => {
-  console.log("\n🛑 Shutting down servers...");
+  console.log("\n Shutting down servers...");
   backendProcess.kill("SIGTERM");
   frontendProcess.kill("SIGTERM");
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-  console.log("\n🛑 Shutting down servers...");
+  console.log("\n Shutting down servers...");
   backendProcess.kill("SIGTERM");
   frontendProcess.kill("SIGTERM");
   process.exit(0);
 });
 
-console.log("✅ Both servers started");
+console.log("Both servers started");
 console.log("📱 Frontend: http://localhost:8080");
 console.log("🔧 Backend: http://localhost:5000");
-console.log("🔄 Proxy will connect frontend to backend");
+console.log("Proxy will connect frontend to backend");
 console.log("Press Ctrl+C to stop both servers");

@@ -29,6 +29,9 @@ import {
 
 import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
 import { useNavigate } from "react-router-dom"; // Import useNavigate hook
+import { authAPI } from "@/services/api"; // Import authAPI for OTP verification
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"; // Import OTP input component
+import { toast } from "sonner"; // Import toast for notifications
 
 const Auth = () => {
   // State for password visibility
@@ -52,16 +55,24 @@ const Auth = () => {
   const [signUpError, setSignUpError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  // State for OTP verification
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [registeredEmail, setRegisteredEmail] = useState("");
+
   // Access authentication functions from context
   const { login, register, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate(); // Initialize useNavigate
 
   // Redirect if already authenticated (e.g., user lands on /auth but is already logged in)
+  // But don't redirect if we're showing OTP verification
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (isAuthenticated && !authLoading && !showOTPVerification) {
       navigate("/"); // Redirect to home page
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, showOTPVerification]);
 
 
   // Features list (remains unchanged)
@@ -84,17 +95,47 @@ const Auth = () => {
   ];
 
   // Handle Sign In form submission
-  const handleSignIn = async (e) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+    
+    // Prevent any default form behavior
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    
     setSignInError(""); // Clear previous errors
     setIsSigningIn(true);
+    
     try {
       await login(signInEmail, signInPassword);
       console.log("Sign in successful!");
       navigate("/"); // Redirect to home page on successful login
-    } catch (error) {
+    } catch (error: any) {
       console.error("Sign in failed:", error);
-      setSignInError(error.message || "An unexpected error occurred during sign in.");
+      const errorMessage = error.message || error.response?.data?.message || "An unexpected error occurred during sign in.";
+      
+      // If account is not activated, show OTP verification form IMMEDIATELY
+      if (errorMessage.includes("not activated") || 
+          errorMessage.includes("OTP") || 
+          errorMessage.includes("activated") ||
+          errorMessage.includes("verification")) {
+        // Set state IMMEDIATELY and synchronously to prevent any navigation
+        setRegisteredEmail(signInEmail);
+        setShowOTPVerification(true);
+        setOtp("");
+        setOtpError("");
+        setSignInError(""); // Clear sign in error since we're showing OTP form
+        
+        // Check if OTP was included in error response (dev mode)
+        if (error.response?.data?.otp) {
+          toast.info(`OTP sent! Check console or email. OTP: ${error.response.data.otp}`, { duration: 10000 });
+        } else {
+          toast.info("A new OTP has been sent to your email. Please verify your account.");
+        }
+      } else {
+        setSignInError(errorMessage);
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -117,19 +158,131 @@ const Auth = () => {
 
     setIsSigningUp(true);
     try {
-      await register({
+      const response: any = await register({
         firstName: signUpFirstName,
         lastName: signUpLastName,
         email: signUpEmail,
         password: signUpPassword,
       });
-      console.log("Sign up successful!");
-      navigate("/"); // Redirect to home page on successful registration
-    } catch (error) {
+      
+      // Check if OTP was included in response (development mode)
+      if (response?.data?.otp) {
+        toast.info(`OTP sent! Check console or email. OTP: ${response.data.otp}`, { duration: 10000 });
+      } else if (response?.data?.data?.otp) {
+        toast.info(`OTP sent! Check console or email. OTP: ${response.data.data.otp}`, { duration: 10000 });
+      } else {
+        toast.success("OTP sent to your email. Please check your inbox.");
+      }
+      
+      // Show OTP verification form instead of redirecting
+      setRegisteredEmail(signUpEmail);
+      setShowOTPVerification(true);
+      setOtp("");
+      setOtpError("");
+    } catch (error: any) {
       console.error("Sign up failed:", error);
-      setSignUpError(error.message || "An unexpected error occurred during sign up.");
+      const errorMessage = error.response?.data?.message || error.message || "An unexpected error occurred during sign up.";
+      setSignUpError(errorMessage);
+      
+      // If registration succeeded but we need OTP, show OTP form
+      if (errorMessage.includes("OTP") || error.response?.status === 201) {
+        setRegisteredEmail(signUpEmail);
+        setShowOTPVerification(true);
+        
+        // Check if OTP is in error response (dev mode)
+        if (error.response?.data?.otp) {
+          toast.info(`OTP: ${error.response.data.otp}`, { duration: 10000 });
+        }
+      }
     } finally {
       setIsSigningUp(false);
+    }
+  };
+
+  // Handle OTP verification
+  const handleVerifyOTP = async (e?: React.FormEvent) => {
+    // Always prevent default to avoid page refresh
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // Only validate length if not already verifying
+    if (!isVerifyingOTP && otp.length !== 6) {
+      setOtpError("Please enter a 6-digit OTP code.");
+      return;
+    }
+
+    // Prevent multiple submissions
+    if (isVerifyingOTP) {
+      return;
+    }
+
+    // Clear any previous errors before starting verification
+    setOtpError("");
+    setIsVerifyingOTP(true);
+    
+    try {
+      const response = await authAPI.verifyOTP(registeredEmail, otp);
+      
+      if (response.data.success) {
+        const { user: userData, token: authToken } = response.data.data;
+        
+        // Store token and user data
+        localStorage.setItem("auth_token", authToken);
+        
+        toast.success("Email verified successfully! Welcome to Techligence.");
+        
+        // Use navigate instead of window.location to avoid full page refresh
+        setTimeout(() => {
+          navigate("/");
+          // Force a page reload to update auth context
+          window.location.reload();
+        }, 500);
+      } else {
+        // Only set error if verification actually failed
+        setOtpError(response.data.message || "Invalid or expired OTP.");
+      }
+    } catch (error: any) {
+      console.error("OTP verification failed:", error);
+      // Only show error after verification attempt fails
+      const errorMessage = error.response?.data?.message || error.message || "Failed to verify OTP. Please try again.";
+      setOtpError(errorMessage);
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  // Handle resend OTP
+  const handleResendOTP = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    try {
+      const response = await authAPI.resendOTP(registeredEmail);
+      if (response.data.success) {
+        toast.success("OTP resent to your email.");
+        setOtp("");
+        setOtpError("");
+        
+        // Check if OTP was included in response (dev mode)
+        if (response.data.data?.otp) {
+          toast.info(`OTP: ${response.data.data.otp}`, { duration: 10000 });
+        }
+      } else {
+        toast.error(response.data.message || "Failed to resend OTP.");
+      }
+    } catch (error: any) {
+      console.error("Resend OTP failed:", error);
+      const errorMessage = error.response?.data?.message || "Failed to resend OTP. Please try again.";
+      toast.error(errorMessage);
+      
+      // In dev mode, check if OTP is in error response
+      if (error.response?.data?.otp) {
+        toast.info(`OTP: ${error.response.data.otp}`, { duration: 10000 });
+      }
     }
   };
 
@@ -223,15 +376,111 @@ const Auth = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="signin" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-8">
-                      <TabsTrigger value="signin">Sign In</TabsTrigger>
-                      <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                    </TabsList>
+                  {showOTPVerification ? (
+                    <div className="space-y-6">
+                      <div className="text-center space-y-2">
+                        <CardTitle className="text-2xl font-display">
+                          Verify Your Email
+                        </CardTitle>
+                        <CardDescription>
+                          We've sent a 6-digit code to {registeredEmail}
+                        </CardDescription>
+                      </div>
+
+                      <form onSubmit={handleVerifyOTP} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="otp" className="text-center block">Enter OTP Code</Label>
+                          <div className="flex justify-center">
+                            <InputOTP
+                              maxLength={6}
+                              value={otp}
+                              onChange={(value) => {
+                                setOtp(value);
+                                // Clear error when user types (only if not currently verifying)
+                                if (!isVerifyingOTP) {
+                                  setOtpError("");
+                                }
+                                // Don't auto-submit - let user click verify button
+                              }}
+                              disabled={isVerifyingOTP}
+                            >
+                              <InputOTPGroup>
+                                <InputOTPSlot index={0} />
+                                <InputOTPSlot index={1} />
+                                <InputOTPSlot index={2} />
+                                <InputOTPSlot index={3} />
+                                <InputOTPSlot index={4} />
+                                <InputOTPSlot index={5} />
+                              </InputOTPGroup>
+                            </InputOTP>
+                          </div>
+                          {otpError && (
+                            <p className="text-red-500 text-sm text-center">{otpError}</p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full rounded-md"
+                          size="lg"
+                          disabled={isVerifyingOTP || otp.length !== 6}
+                        >
+                          {isVerifyingOTP ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            "Verify OTP"
+                          )}
+                        </Button>
+
+                        <div className="text-center space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            Didn't receive the code?
+                          </p>
+                        <Button
+                          type="button"
+                          variant="link"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleResendOTP(e);
+                          }}
+                          className="text-sm"
+                        >
+                          Resend OTP
+                        </Button>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowOTPVerification(false);
+                            setOtp("");
+                            setOtpError("");
+                          }}
+                          className="w-full"
+                        >
+                          Back to Sign Up
+                        </Button>
+                      </form>
+                    </div>
+                  ) : (
+                    <Tabs defaultValue="signin" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 mb-8">
+                        <TabsTrigger value="signin">Sign In</TabsTrigger>
+                        <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                      </TabsList>
 
                     {/* Sign In Form */}
                     <TabsContent value="signin" className="space-y-6">
-                      <form onSubmit={handleSignIn} className="space-y-4">
+                      <form 
+                        onSubmit={handleSignIn} 
+                        className="space-y-4"
+                        noValidate
+                      >
                         <div className="space-y-2">
                           <Label htmlFor="signin-email">Email</Label>
                           <div className="relative">
@@ -509,6 +758,7 @@ const Auth = () => {
                       </div>
                     </TabsContent>
                   </Tabs>
+                  )}
                 </CardContent>
               </Card>
             </div>
