@@ -186,8 +186,39 @@ const CheckoutDialog = ({
         order_id: backendOrder.order.id,
         handler: async (response: any) => {
           try {
-            // Use the new paymentAPI.verifyPayment method
-            const verifyRes = await paymentAPI.verifyPayment(response);
+            // Prepare order data to send with verification
+            const orderData = {
+              ...response,
+              items: items.map(item => ({
+                productId: item.productId,
+                name: item.name,
+                price: item.price,
+                priceValue: item.priceValue,
+                quantity: item.quantity,
+                image: item.image,
+                specifications: item.specifications,
+              })),
+              customer: {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: formData.phone,
+              },
+              shippingAddress: {
+                address: formData.address,
+                city: formData.city,
+                state: formData.state,
+                zipCode: formData.zipCode,
+                country: "India",
+              },
+              subtotal: totalPrice, // Assuming totalPrice is the final amount including everything
+              shipping: 0, // Can be calculated if needed
+              tax: 0, // Can be calculated if needed
+              total: totalPrice,
+            };
+
+            // Use the new paymentAPI.verifyPayment method with order data
+            const verifyRes = await paymentAPI.verifyPayment(orderData);
 
             if (verifyRes.data.success) {
               setStep("confirmation");

@@ -33,13 +33,24 @@ router.get("/:productId", async (req, res) => {
 router.get("/:productId/status", authenticateToken, async (req, res) => {
   try {
     const { productId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.userId || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in request",
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ success: false, message: "Invalid product ID format" });
     }
 
-    const like = await ProductLike.findOne({ productId, userId });
+    // Convert to ObjectId
+    const productObjectId = new mongoose.Types.ObjectId(productId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const like = await ProductLike.findOne({ productId: productObjectId, userId: userObjectId });
     const isLiked = !!like;
 
     res.json({
@@ -59,19 +70,30 @@ router.get("/:productId/status", authenticateToken, async (req, res) => {
 router.post("/:productId", authenticateToken, async (req, res) => {
   try {
     const { productId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.userId || req.user?._id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in request",
+      });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({ success: false, message: "Invalid product ID format" });
     }
 
+    // Convert to ObjectId
+    const productObjectId = new mongoose.Types.ObjectId(productId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
     // Check if like already exists
-    const existingLike = await ProductLike.findOne({ productId, userId });
+    const existingLike = await ProductLike.findOne({ productId: productObjectId, userId: userObjectId });
 
     if (existingLike) {
       // Unlike: remove the like
       await ProductLike.findByIdAndDelete(existingLike._id);
-      const likeCount = await ProductLike.countDocuments({ productId });
+      const likeCount = await ProductLike.countDocuments({ productId: productObjectId });
 
       res.json({
         success: true,
@@ -84,9 +106,12 @@ router.post("/:productId", authenticateToken, async (req, res) => {
       });
     } else {
       // Like: create new like
-      const newLike = new ProductLike({ productId, userId });
+      const newLike = new ProductLike({ 
+        productId: productObjectId, 
+        userId: userObjectId 
+      });
       await newLike.save();
-      const likeCount = await ProductLike.countDocuments({ productId });
+      const likeCount = await ProductLike.countDocuments({ productId: productObjectId });
 
       res.json({
         success: true,

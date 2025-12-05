@@ -51,6 +51,7 @@ interface JobApplicationFormProps {
   jobTitle: string;
   jobDepartment: string;
   jobLocation: string;
+  jobId?: string; // Optional jobId for more reliable matching
 }
 
 interface FormData {
@@ -98,6 +99,7 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({
   jobTitle,
   jobDepartment,
   jobLocation,
+  jobId,
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -242,6 +244,9 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({
       submitData.append("jobTitle", jobTitle);
       submitData.append("jobDepartment", jobDepartment);
       submitData.append("jobLocation", jobLocation);
+      if (jobId) {
+        submitData.append("jobId", jobId);
+      }
 
       // Submit application using careerAPI
       const response = await careerAPI.submitApplication(submitData);

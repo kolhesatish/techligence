@@ -89,9 +89,10 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
           }
         } catch (err: any) {
           console.error("Error fetching job listing for edit:", err);
-          setError(err.response?.data?.message || err.message || "Failed to load job details.");
-          toast.error("Failed to load job details for editing.");
-          onClose(); // Close modal if job data cannot be loaded
+          const errorMessage = err.response?.data?.message || err.message || "Failed to load job details.";
+          setError(errorMessage);
+          toast.error(errorMessage);
+          // Don't close modal immediately - let user see the error and try again or close manually
         } finally {
           setIsLoadingJob(false);
         }
@@ -193,8 +194,8 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] p-6">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-6 flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             {dialogIcon} {dialogTitle}
           </DialogTitle>
@@ -203,13 +204,14 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoadingJob ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2 text-muted-foreground">Loading job details...</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto pr-1" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+          {isLoadingJob ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2 text-muted-foreground">Loading job details...</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                 <strong className="font-bold">Error!</strong>
@@ -321,16 +323,17 @@ const CreateJobListingForm: React.FC<CreateJobListingFormProps> = ({
               <Label htmlFor="isActive">Active Job Listing</Label>
             </div>
 
-            <Button type="submit" className="w-full gap-2 mt-6" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                submitButtonIcon
-              )}
-              {isSubmitting ? (currentJobId ? "Saving..." : "Creating...") : submitButtonText}
-            </Button>
-          </form>
-        )}
+              <Button type="submit" className="w-full gap-2 mt-6" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  submitButtonIcon
+                )}
+                {isSubmitting ? (currentJobId ? "Saving..." : "Creating...") : submitButtonText}
+              </Button>
+            </form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

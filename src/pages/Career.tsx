@@ -10,7 +10,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 import JobApplicationForm from "@/components/JobApplicationForm";
-import CreateJobListingForm from "@/components/CreateJobListingForm"; // Import CreateJobListingForm
 import {
   ArrowRight,
   MapPin,
@@ -21,10 +20,7 @@ import {
   Star,
   Building,
   ChevronRight,
-  PlusCircle,
   Loader2,
-  Edit, // Import Edit icon
-  Trash2, // Import Trash2 icon
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
 import { useQuery, useQueryClient } from "@tanstack/react-query"; // Import react-query hooks
@@ -49,8 +45,6 @@ interface JobListing {
 const Career = () => {
   const [isApplicationFormOpen, setIsApplicationFormOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobListing | null>(null); // Use JobListing type
-  const [isCreateJobFormOpen, setIsCreateJobFormOpen] = useState(false); // State for create/edit job form
-  const [editingJobId, setEditingJobId] = useState<string | null>(null); // State for job ID being edited
 
   const { user, isAuthenticated } = useAuth();
   const isAdmin = isAuthenticated && user?.role === "admin";
@@ -92,49 +86,6 @@ const Career = () => {
     setIsApplicationFormOpen(true);
   };
 
-  const handleCreateJobClick = () => {
-    setEditingJobId(null); // Ensure we're in create mode
-    setIsCreateJobFormOpen(true);
-  };
-
-  const handleCloseCreateJobForm = () => {
-    setIsCreateJobFormOpen(false);
-    setEditingJobId(null); // Reset editingJobId when form closes
-    queryClient.invalidateQueries({ queryKey: ["jobListings"] }); // Invalidate to refetch updated job list
-  };
-
-  // Handle Edit Job Listing: Opens the CreateJobListingForm in edit mode
-  const handleEditJob = (jobId: string) => {
-    setEditingJobId(jobId); // Set the ID of the job to be edited
-    setIsCreateJobFormOpen(true); // Open the form
-    toast.info(`Opening form to edit job ID: ${jobId}`);
-  };
-
-  // Handle Delete Job Listing
-  const handleDeleteJob = async (jobId: string) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this job listing? This action cannot be undone.",
-      )
-    ) {
-      try {
-        const response = await careerAPI.deleteJobListing(jobId);
-        if (response.data.success) {
-          toast.success(
-            response.data.message || "Job listing deleted successfully!",
-          );
-          queryClient.invalidateQueries({ queryKey: ["jobListings"] }); // Invalidate to refetch updated list
-        } else {
-          toast.error(response.data.message || "Failed to delete job listing.");
-        }
-      } catch (error: any) {
-        console.error("Error deleting job listing:", error);
-        toast.error(
-          error.response?.data?.message || "An error occurred during deletion.",
-        );
-      }
-    }
-  };
 
   const benefits = [
     {
@@ -247,19 +198,6 @@ const Career = () => {
               Find your perfect role in our growing team. We're always looking
               for talented individuals who share our passion for robotics.
             </p>
-            {/* Admin button to create new job listing */}
-            {isAdmin && (
-              <div className="mt-8">
-                <Button
-                  size="lg"
-                  className="gap-2"
-                  onClick={handleCreateJobClick}
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  Create New Job Listing
-                </Button>
-              </div>
-            )}
           </div>
 
           {isLoading ? (
@@ -297,29 +235,6 @@ const Career = () => {
                           </CardDescription>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Admin Edit and Delete Buttons */}
-                          {isAdmin && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleEditJob(job._id)}
-                                className="h-8 w-8 text-blue-500 hover:bg-blue-50"
-                                title="Edit Job Listing"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteJob(job._id)}
-                                className="h-8 w-8 text-red-500 hover:bg-red-50"
-                                title="Delete Job Listing"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
                           <Button
                             className="gap-2"
                             onClick={() => handleApplyClick(job)}
@@ -429,17 +344,10 @@ const Career = () => {
           jobTitle={selectedJob.title}
           jobDepartment={selectedJob.department}
           jobLocation={selectedJob.location}
+          jobId={selectedJob._id}
         />
       )}
 
-      {/* Create/Edit Job Listing Form Modal (Admin Only) */}
-      {isAdmin && (
-        <CreateJobListingForm
-          isOpen={isCreateJobFormOpen}
-          onClose={handleCloseCreateJobForm}
-          jobId={editingJobId} // Pass the jobId to the form for editing
-        />
-      )}
     </div>
   );
 };

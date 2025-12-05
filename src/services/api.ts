@@ -257,6 +257,18 @@ export const careerAPI = {
   // API call to update a job listing (for admin)
   updateJobListing: (jobId: string, jobData: any) =>
     apiCall(() => api.put(`/career/jobs/${jobId}`, jobData)),
+
+  // API call to get all job applications (for admin)
+  getApplications: (params?: { jobId?: string; status?: string }) =>
+    apiCall(() => api.get("/career/applications", { params })),
+
+  // API call to get a single application by ID (for admin)
+  getApplicationById: (applicationId: string) =>
+    apiCall(() => api.get(`/career/applications/${applicationId}`)),
+
+  // API call to update application status (for admin)
+  updateApplicationStatus: (applicationId: string, data: { status: string; adminNotes?: string }) =>
+    apiCall(() => api.put(`/career/applications/${applicationId}/status`, data)),
 };
 
 // NEW: Chatbot API
@@ -281,5 +293,22 @@ export const paymentAPI = {
     razorpay_order_id: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
+    items?: any[];
+    customer?: any;
+    shippingAddress?: any;
+    subtotal?: number;
+    shipping?: number;
+    tax?: number;
+    total?: number;
   }) => apiCall(() => api.post("/payment/verify", data)),
+};
+
+// NEW: Orders API (Admin only)
+export const ordersAPI = {
+  getOrders: (params?: { status?: string; paymentStatus?: string; page?: number; limit?: number }) =>
+    apiCall(() => api.get("/payment/orders", { params })),
+  getOrderById: (orderId: string) =>
+    apiCall(() => api.get(`/payment/orders/${orderId}`)),
+  updateOrderStatus: (orderId: string, data: { status: string; trackingNumber?: string; notes?: string }) =>
+    apiCall(() => api.put(`/payment/orders/${orderId}/status`, data)),
 };
