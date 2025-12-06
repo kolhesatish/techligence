@@ -86,3 +86,4 @@ TO public
 USING (bucket_id = 'blog-images');
 ```
 
+

@@ -160,12 +160,18 @@ const ProductDetail = () => {
   };
 
   const formatPrice = (price: string | number) => {
+    // If price is a string, try to extract numeric value and format as INR
     if (typeof price === "string") {
-      return price;
+      const numericValue = parseFloat(price.replace(/[₹$,]/g, "")) || 0;
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }).format(numericValue);
     }
-    return new Intl.NumberFormat("en-US", {
+    // If price is a number, format as INR
+    return new Intl.NumberFormat("en-IN", {
       style: "currency",
-      currency: "USD",
+      currency: "INR",
     }).format(price);
   };
 
@@ -299,7 +305,7 @@ const ProductDetail = () => {
 
             <div className="flex items-center gap-2 mb-6">
               <div className="text-3xl font-bold text-primary">
-                {formatPrice(product.price)}
+                {formatPrice(product.priceValue)}
               </div>
               {product.originalPrice && (
                 <div className="text-xl text-muted-foreground line-through">

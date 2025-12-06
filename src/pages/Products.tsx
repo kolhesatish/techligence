@@ -163,12 +163,18 @@ const Products = () => {
 
   // Helper to format prices for display
   const formatPrice = (price: string | number) => {
+    // If price is a string, try to extract numeric value and format as INR
     if (typeof price === "string") {
-      return price; // Already formatted
+      const numericValue = parseFloat(price.replace(/[₹$,]/g, "")) || 0;
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+      }).format(numericValue);
     }
-    return new Intl.NumberFormat("en-US", {
+    // If price is a number, format as INR
+    return new Intl.NumberFormat("en-IN", {
       style: "currency",
-      currency: "USD",
+      currency: "INR",
     }).format(price);
   };
 
@@ -462,11 +468,11 @@ const Products = () => {
 
                   <div className="flex items-center gap-2 mb-4">
                     <div className="text-2xl font-bold text-primary">
-                      {typeof robot.price === 'string' ? robot.price : formatPrice(robot.price)}
+                      {formatPrice(robot.price)}
                     </div>
                     {robot.originalPrice && (
                       <div className="text-lg text-muted-foreground line-through">
-                        {typeof robot.originalPrice === 'string' ? robot.originalPrice : formatPrice(robot.originalPrice)}
+                        {formatPrice(robot.originalPrice)}
                       </div>
                     )}
                   </div>
