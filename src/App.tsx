@@ -31,6 +31,7 @@ import MLTools from "./pages/MLTools"; // Import MLTools
 import React from "react"; // Import React for useEffect
 import RobotLab from "./pages/RobotLab"; // Import RobotLab page
 import AdvancedURDFController from "./pages/AdvancedURDFController";
+import UserOrders from "./pages/UserOrders";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/tools" element={<Tools />} />
               <Route path="/tools/:slug" element={<ToolDetail />} />
+              <Route path="/orders" element={<UserOrders />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/blog/new" element={<NewBlogPostPage />} />
               <Route

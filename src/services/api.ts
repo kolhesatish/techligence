@@ -330,6 +330,9 @@ export const ordersAPI = {
     apiCall(() => api.get(`/payment/orders/${orderId}`)),
   updateOrderStatus: (orderId: string, data: { status: string; trackingNumber?: string; notes?: string }) =>
     apiCall(() => api.put(`/payment/orders/${orderId}/status`, data)),
+  // User orders
+  getMyOrders: () =>
+    apiCall(() => api.get("/payment/my-orders")),
 };
 
 // Tools API

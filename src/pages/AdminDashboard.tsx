@@ -387,6 +387,35 @@ const AdminDashboard = () => {
     }
   }, [isAuthenticated, user, initialTab]);
 
+  // Fetch orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setOrdersLoading(true);
+      try {
+        const params: any = {};
+        if (selectedOrderStatusFilter !== "all") {
+          params.status = selectedOrderStatusFilter;
+        }
+        if (selectedPaymentStatusFilter !== "all") {
+          params.paymentStatus = selectedPaymentStatusFilter;
+        }
+        const response = await ordersAPI.getOrders(params);
+        if (response.data.success) {
+          setOrders(response.data.data || []);
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch orders:", error);
+        toast.error("Failed to load orders");
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+
+    if (isAuthenticated && user?.role === "admin" && activeTab === "orders") {
+      fetchOrders();
+    }
+  }, [isAuthenticated, user, activeTab, selectedOrderStatusFilter, selectedPaymentStatusFilter]);
+
   const handleDeleteProduct = async (productId: number) => {
     setDeletingProductId(productId);
     try {
@@ -911,7 +940,7 @@ const AdminDashboard = () => {
                             {new Date(order.createdAt).toLocaleString()}
                           </div>
                           <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
+                            <CreditCard className="w-4 h-4" />
                             ₹{order.total.toLocaleString()}
                           </div>
                           <div className="flex items-center gap-1">
@@ -1604,7 +1633,7 @@ const AdminDashboard = () => {
                       <div className="flex-1">
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
-                        <p className="text-sm text-muted-foreground">Price: {item.price}</p>
+                        <p className="text-sm text-muted-foreground">Price: ₹{item.priceValue.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold">₹{(item.priceValue * item.quantity).toLocaleString()}</p>

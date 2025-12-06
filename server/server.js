@@ -61,6 +61,19 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+// Warn about missing Razorpay keys (non-critical, but important for payment functionality)
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.warn('\n⚠️  WARNING: Razorpay keys are not set in .env');
+  console.warn('   Payment functionality will not work without these keys.');
+  console.warn('   Please add to server/.env:');
+  console.warn('   RAZORPAY_KEY_ID=your-razorpay-key-id');
+  console.warn('   RAZORPAY_KEY_SECRET=your-razorpay-key-secret');
+  console.warn('');
+} else {
+  console.log('✅ Razorpay keys loaded successfully');
+  console.log(`   Key ID: ${process.env.RAZORPAY_KEY_ID.substring(0, 10)}...`);
+}
+
 const app = express();
 const server = createServer(app);
 

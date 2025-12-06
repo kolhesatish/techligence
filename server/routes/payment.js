@@ -9,11 +9,20 @@ const router = express.Router();
 router.post("/create-order", async (req, res) => {
   const { amount } = req.body;
 
-  const key_id = process.env.RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  // Trim whitespace from environment variables
+  const key_id = process.env.RAZORPAY_KEY_ID?.trim();
+  const key_secret = process.env.RAZORPAY_KEY_SECRET?.trim();
+
+  // Debug logging to help diagnose environment variable issues
+  console.log("🔍 Razorpay Environment Variables Check:");
+  console.log("   RAZORPAY_KEY_ID:", key_id ? `${key_id.substring(0, 10)}...` : "NOT FOUND");
+  console.log("   RAZORPAY_KEY_SECRET:", key_secret ? `${key_secret.substring(0, 10)}...` : "NOT FOUND");
+  console.log("   All env vars with RAZORPAY:", Object.keys(process.env).filter(k => k.includes('RAZORPAY')));
 
   if (!key_id || !key_secret) {
-    console.error("Missing Razorpay keys in .env");
+    console.error("❌ Missing Razorpay keys in .env");
+    console.error("   Please ensure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are set in server/.env");
+    console.error("   After adding keys, restart the server!");
     return res.status(500).json({ error: "Missing Razorpay keys" });
   }
 
@@ -58,7 +67,16 @@ router.post("/verify", authenticateToken, async (req, res) => {
     total
   } = req.body;
 
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  // Debug logging
+  console.log("📦 Order verification payload:");
+  console.log("   Items received:", JSON.stringify(items, null, 2));
+  console.log("   Items count:", items?.length || 0);
+  if (items && items.length > 0) {
+    console.log("   First item:", JSON.stringify(items[0], null, 2));
+    console.log("   First item productId:", items[0].productId);
+  }
+
+  const key_secret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     console.error("Missing fields in verification payload");
@@ -238,6 +256,37 @@ router.get("/orders/:orderId", authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: "Failed to fetch order", 
+      error: error.message 
+    });
+  }
+});
+
+// GET /my-orders - Get current user's orders
+router.get("/my-orders", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId || req.user?._id;
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+
+    const orders = await Order.find({ "customer.userId": userId })
+      .sort({ createdAt: -1 })
+      .populate("items.productMongoId", "name image price");
+
+    res.json({
+      success: true,
+      message: "Orders fetched successfully!",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch orders", 
       error: error.message 
     });
   }

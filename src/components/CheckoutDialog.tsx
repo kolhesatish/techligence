@@ -190,7 +190,7 @@ const CheckoutDialog = ({
             const orderData = {
               ...response,
               items: items.map(item => ({
-                productId: item.productId,
+                productId: item.id, // Cart items use 'id', not 'productId'
                 name: item.name,
                 price: item.price,
                 priceValue: item.priceValue,
@@ -221,8 +221,10 @@ const CheckoutDialog = ({
             const verifyRes = await paymentAPI.verifyPayment(orderData);
 
             if (verifyRes.data.success) {
+              clearCart(); // Clear cart after successful payment
               setStep("confirmation");
               onOpenChange(true); // Re-open dialog to show confirmation
+              toast.success("Order placed successfully!");
             } else {
               toast.error(
                 verifyRes.data.error || "Payment verification failed.",
@@ -282,27 +284,29 @@ const CheckoutDialog = ({
         onOpenChange(val);
       }}
     >
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            {step === "details" && "Checkout Details"}
-            {step === "payment" && "Payment Information"}
-            {step === "confirmation" && "Order Confirmation"}
-          </DialogTitle>
-          <DialogDescription>
-            {step === "details" &&
-              "Please provide your shipping and contact information"}
-            {step === "payment" && "Secure payment with OTP verification"}
-            {step === "confirmation" && `Order #${orderNumber} confirmed!`}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <div className="px-6 pt-6 pb-4 border-b">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {step === "details" && "Checkout Details"}
+              {step === "payment" && "Payment Information"}
+              {step === "confirmation" && "Order Confirmation"}
+            </DialogTitle>
+            <DialogDescription>
+              {step === "details" &&
+                "Please provide your shipping and contact information"}
+              {step === "payment" && "Secure payment with OTP verification"}
+              {step === "confirmation" && `Order #${orderNumber} confirmed!`}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="flex flex-col overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Order Summary */}
-          <div className="border-b pb-4 mb-4">
+          <div className="border-b pb-4 mb-4 px-6 pt-4">
             <h3 className="font-semibold mb-3">Order Summary</h3>
-            <div className="space-y-2 max-h-32 overflow-y-auto text-sm">
+            <div className="space-y-2 max-h-32 overflow-y-auto text-sm pr-2">
               {items.map((item) => (
                 <div key={item.id} className="flex justify-between">
                   <span>
@@ -320,7 +324,7 @@ const CheckoutDialog = ({
           </div>
 
           {/* Form */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
             {step === "details" && (
               <Tabs defaultValue="customer" className="space-y-4">
                 <TabsList className="grid grid-cols-2 w-full">
@@ -493,7 +497,7 @@ const CheckoutDialog = ({
           </div>
 
           {/* Footer buttons */}
-          <div className="border-t pt-4 mt-4 flex gap-3">
+          <div className="border-t pt-4 pb-6 px-6 mt-4 flex gap-3 bg-background">
             {step === "details" && (
               <>
                 <Button variant="outline" onClick={() => onOpenChange(false)}>

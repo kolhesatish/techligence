@@ -17,10 +17,12 @@ import {
   Trash2,
   CreditCard,
   Package,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import CheckoutDialog from "./CheckoutDialog";
 import { useNavigate } from "react-router-dom"; // 👈 React Router
+import { useAuth } from "@/context/AuthContext";
 
 const ShoppingCartComponent = () => {
   const {
@@ -32,6 +34,7 @@ const ShoppingCartComponent = () => {
     getTotalItems,
     getTotalPrice,
   } = useCartStore();
+  const { isAuthenticated } = useAuth();
 
   const [showCheckout, setShowCheckout] = useState(false);
   const navigate = useNavigate(); // 👈 useNavigate hook
@@ -65,20 +68,36 @@ const ShoppingCartComponent = () => {
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Shopping Cart ({totalItems} items)
-            </SheetTitle>
-            <SheetDescription>
-              Review your selected robots before checkout
-            </SheetDescription>
-          </SheetHeader>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full p-0">
+          <div className="px-6 pt-6 pb-4 border-b">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Shopping Cart ({totalItems} items)
+              </SheetTitle>
+              <SheetDescription>
+                Review your selected robots before checkout
+              </SheetDescription>
+              {isAuthenticated && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 mt-2"
+                  onClick={() => {
+                    setOpen(false);
+                    navigate("/orders");
+                  }}
+                >
+                  <Receipt className="h-4 w-4" />
+                  View My Orders
+                </Button>
+              )}
+            </SheetHeader>
+          </div>
 
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {items.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-8 px-6">
                 <Package className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
                   Your cart is empty
@@ -97,7 +116,7 @@ const ShoppingCartComponent = () => {
               </div>
             ) : (
               <>
-                <div className="flex-1 overflow-auto py-4">
+                <div className="flex-1 overflow-y-auto py-4 px-6">
                   <div className="space-y-4">
                     {items.map((item) => (
                       <div
@@ -169,7 +188,7 @@ const ShoppingCartComponent = () => {
                   </div>
                 </div>
 
-                <div className="border-t pt-4 space-y-4">
+                <div className="border-t pt-4 pb-6 px-6 space-y-4 bg-background">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Subtotal:</span>
