@@ -4,8 +4,16 @@ const blogPostSchema = new mongoose.Schema(
   {
     postId: {
       type: Number,
+      required: false, // Made optional for backward compatibility
+      unique: true,
+      sparse: true, // Allow multiple null values
+    },
+    slug: {
+      type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
     },
     title: {
       type: String,
@@ -56,7 +64,11 @@ const blogPostSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    content: { // Full content of the blog post (optional for list view, but essential for detail page)
+    published: {
+      type: Boolean,
+      default: true, // Default to published, can be set to false for drafts
+    },
+    content: { // Full content of the blog post (HTML format)
       type: String,
       trim: true,
     }
@@ -68,7 +80,9 @@ const blogPostSchema = new mongoose.Schema(
 
 // Indexes for efficient querying
 blogPostSchema.index({ postId: 1 });
+blogPostSchema.index({ slug: 1 });
 blogPostSchema.index({ category: 1 });
 blogPostSchema.index({ featured: 1 });
+blogPostSchema.index({ published: 1 });
 
 export default mongoose.model("BlogPost", blogPostSchema);

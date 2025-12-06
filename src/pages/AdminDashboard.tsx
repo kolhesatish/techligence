@@ -9,10 +9,10 @@ import {
   Loader2, Plus, Edit, Trash2, Package, Briefcase, FileText, 
   MapPin, Clock, DollarSign, Building, User, Mail, Phone, 
   Download, Eye, CheckCircle, XCircle, Clock as ClockIcon, GraduationCap,
-  ShoppingCart, Truck, CreditCard
+  ShoppingCart, Truck, CreditCard, BookOpen
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { productsAPI, careerAPI, ordersAPI } from "@/services/api";
+import { productsAPI, careerAPI, ordersAPI, blogAPI } from "@/services/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,6 +142,27 @@ interface Order {
   updatedAt: string;
 }
 
+interface BlogPost {
+  _id: string;
+  postId?: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  authorRole: string;
+  publishedDate: string;
+  readTime: string;
+  category: string;
+  image: string;
+  likes: number;
+  comments: number;
+  featured: boolean;
+  published?: boolean;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -177,6 +198,13 @@ const AdminDashboard = () => {
   const [selectedPaymentStatusFilter, setSelectedPaymentStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+
+  // Blogs state
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [blogsLoading, setBlogsLoading] = useState(false);
+  const [deleteBlogDialogOpen, setDeleteBlogDialogOpen] = useState(false);
+  const [blogToDelete, setBlogToDelete] = useState<string | null>(null); // Changed to string for slug
+  const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null); // Changed to string for slug
 
   // Check authentication and role
   useEffect(() => {
@@ -260,6 +288,29 @@ const AdminDashboard = () => {
     }
   }, [isAuthenticated, user, activeTab, selectedJobFilter, selectedStatusFilter]);
 
+  // Fetch blogs
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      setBlogsLoading(true);
+      try {
+        // Use admin endpoint to get all blogs including drafts
+        const response = await blogAPI.getAllBlogPosts();
+        if (response.data.success) {
+          setBlogs(response.data.data || []);
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch blogs:", error);
+        toast.error("Failed to load blog posts");
+      } finally {
+        setBlogsLoading(false);
+      }
+    };
+
+    if (isAuthenticated && user?.role === "admin" && activeTab === "blogs") {
+      fetchBlogs();
+    }
+  }, [isAuthenticated, user, activeTab]);
+
   const handleDeleteProduct = async (productId: number) => {
     setDeletingProductId(productId);
     try {
@@ -295,6 +346,27 @@ const AdminDashboard = () => {
     } finally {
       setDeleteJobDialogOpen(false);
       setJobToDelete(null);
+    }
+  };
+
+  const handleDeleteBlog = async (slugOrId: string) => {
+    setDeletingBlogId(slugOrId);
+    try {
+      // Use slug if available, otherwise use postId
+      const response = await blogAPI.deleteBlogPostBySlugOrId(slugOrId);
+      if (response.data.success) {
+        toast.success("Blog post deleted successfully");
+        setBlogs(blogs.filter((b) => (b.slug || String(b.postId)) !== slugOrId));
+      } else {
+        throw new Error(response.data.message || "Delete failed");
+      }
+    } catch (error: any) {
+      console.error("Failed to delete blog:", error);
+      toast.error(error.response?.data?.message || error.message || "Failed to delete blog post");
+    } finally {
+      setDeletingBlogId(null);
+      setDeleteBlogDialogOpen(false);
+      setBlogToDelete(null);
     }
   };
 
@@ -346,11 +418,12 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="jobs">Job Postings</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="blogs">Blogs</TabsTrigger>
         </TabsList>
 
         {/* Products Tab */}
@@ -821,6 +894,97 @@ const AdminDashboard = () => {
             </div>
           )}
         </TabsContent>
+
+        {/* Blogs Tab */}
+        <TabsContent value="blogs" className="mt-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold">Blog Posts</h2>
+            <Button onClick={() => navigate("/admin/blog/new")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Blog Post
+            </Button>
+          </div>
+
+          {blogsLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : blogs.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-semibold mb-2">No blog posts found</p>
+                <p className="text-muted-foreground mb-4">Create your first blog post</p>
+                <Button onClick={() => navigate("/admin/blog/new")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Blog Post
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {blogs.map((blog) => (
+                <Card key={blog._id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="text-xl">{blog.title}</CardTitle>
+                        <CardDescription className="mt-2">{blog.excerpt}</CardDescription>
+                        <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {blog.author} ({blog.authorRole})
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {new Date(blog.publishedDate).toLocaleDateString()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {blog.readTime}
+                          </div>
+                          <Badge variant="outline">{blog.category}</Badge>
+                          {blog.featured && <Badge variant="default">Featured</Badge>}
+                          <Badge variant={blog.published !== false ? "default" : "secondary"}>
+                            {blog.published !== false ? "Published" : "Draft"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                            onClick={() => navigate(`/admin/blog/edit/${blog.slug || blog.postId}`)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setBlogToDelete(blog.slug || String(blog.postId));
+                            setDeleteBlogDialogOpen(true);
+                          }}
+                          disabled={deletingBlogId === (blog.slug || String(blog.postId))}
+                        >
+                          {deletingBlogId === (blog.slug || String(blog.postId)) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Delete Product Dialog */}
@@ -857,6 +1021,27 @@ const AdminDashboard = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => jobToDelete && handleDeleteJob(jobToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Blog Dialog */}
+      <AlertDialog open={deleteBlogDialogOpen} onOpenChange={setDeleteBlogDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the blog post from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => blogToDelete && handleDeleteBlog(blogToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

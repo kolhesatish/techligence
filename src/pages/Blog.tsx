@@ -39,7 +39,8 @@ import { useAuth } from "@/context/AuthContext"; // Import useAuth
 
 // Define interface for BlogPost to match backend schema
 interface BlogPost {
-  postId: number;
+  postId?: number;
+  slug?: string;
   title: string;
   excerpt: string;
   author: string;
@@ -122,20 +123,21 @@ const Blog = () => {
   };
 
   // Handle blog post update - navigate to edit page
-  const handleUpdateBlogPost = (postId: number) => {
-    navigate(`/admin/blog/edit/${postId}`); // Assuming a route like /admin/blog/edit/:postId
+  const handleUpdateBlogPost = (post: BlogPost) => {
+    navigate(`/admin/blog/edit/${post.slug || post.postId}`); // Use slug if available, fallback to postId
   };
 
   // Handle blog post delete
-  const handleDeleteBlogPost = async (postId: number) => {
-    if (window.confirm(`Are you sure you want to delete blog post with ID: ${postId}? This action cannot be undone.`)) {
+  const handleDeleteBlogPost = async (post: BlogPost) => {
+    const identifier = post.slug || String(post.postId);
+    if (window.confirm(`Are you sure you want to delete blog post "${post.title}"? This action cannot be undone.`)) {
       try {
-        const response = await blogAPI.deleteBlogPost(postId);
+        const response = await blogAPI.deleteBlogPostBySlugOrId(identifier);
         if (response.data.success) {
-          toast.success(`Blog post ${postId} deleted successfully!`);
+          toast.success(`Blog post deleted successfully!`);
           queryClient.invalidateQueries({ queryKey: ["blogPosts"] }); // Invalidate to refetch list
         } else {
-          toast.error(response.data.message || `Failed to delete blog post ${postId}.`);
+          toast.error(response.data.message || `Failed to delete blog post.`);
         }
       } catch (error: any) {
         console.error("Delete blog post error:", error);
@@ -278,7 +280,7 @@ const Blog = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleUpdateBlogPost(post.postId)}
+                              onClick={() => handleUpdateBlogPost(post)}
                               className="h-8 w-8 text-blue-500 hover:bg-blue-50"
                             >
                               <Edit className="w-4 h-4" />
@@ -286,7 +288,7 @@ const Blog = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteBlogPost(post.postId)}
+                              onClick={() => handleDeleteBlogPost(post)}
                               className="h-8 w-8 text-red-500 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -304,7 +306,17 @@ const Blog = () => {
                       </div>
                     </div>
 
-                    <div className="text-4xl mb-4">{post.image}</div>
+                    <div className="mb-4">
+                      {post.image && (post.image.startsWith('http://') || post.image.startsWith('https://')) ? (
+                        <img 
+                          src={post.image} 
+                          alt={post.title}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="text-4xl">{post.image}</div>
+                      )}
+                    </div>
                     <CardTitle className="text-xl group-hover:text-primary transition-colors line-clamp-2">
                       {post.title}
                     </CardTitle>
@@ -339,7 +351,7 @@ const Blog = () => {
                       </div>
                     </div>
 
-                    <Link to={`/blog/${post.postId}`} className="w-full">
+                    <Link to={`/blog/${post.slug || post.postId}`} className="w-full">
                       <Button className="w-full mt-4 gap-2 group-hover:gap-3 transition-all">
                         Read Article
                         <ArrowRight className="w-4 h-4" />
@@ -383,7 +395,7 @@ const Blog = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleUpdateBlogPost(post.postId)}
+                            onClick={() => handleUpdateBlogPost(post)}
                             className="h-8 w-8 text-blue-500 hover:bg-blue-50"
                           >
                             <Edit className="w-4 h-4" />
@@ -391,7 +403,7 @@ const Blog = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteBlogPost(post.postId)}
+                            onClick={() => handleDeleteBlogPost(post)}
                             className="h-8 w-8 text-red-500 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -404,7 +416,17 @@ const Blog = () => {
                     </div>
                   </div>
 
-                  <div className="text-3xl mb-4">{post.image}</div>
+                  <div className="mb-4">
+                    {post.image && (post.image.startsWith('http://') || post.image.startsWith('https://')) ? (
+                      <img 
+                        src={post.image} 
+                        alt={post.title}
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="text-3xl">{post.image}</div>
+                    )}
+                  </div>
                   <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
                     {post.title}
                   </CardTitle>
@@ -439,7 +461,7 @@ const Blog = () => {
                     </div>
                   </div>
 
-                  <Link to={`/blog/${post.postId}`} className="w-full">
+                  <Link to={`/blog/${post.slug || post.postId}`} className="w-full">
                     <Button variant="outline" className="w-full gap-2">
                       Read More
                       <ArrowRight className="w-4 h-4" />

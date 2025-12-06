@@ -16,10 +16,22 @@ import { Loader2, PlusCircle, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext"; // Corrected import path for AuthContext
 import { blogAPI } from "@/services/api"; // Import blogAPI
+import RichTextEditor from "@/components/RichTextEditor";
+import { ImageUpload } from "@/components/ImageUpload"; // Import ImageUpload component
+
+// Helper function to generate slug from title
+const generateSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+};
 
 // Define the type for blog post data
 interface BlogPostFormData {
-  postId: number | null;
+  slug: string;
   title: string;
   excerpt: string;
   author: string;
@@ -31,18 +43,19 @@ interface BlogPostFormData {
   likes: number;
   comments: number;
   featured: boolean;
-  content: string; // Full content of the blog post
+  published: boolean;
+  content: string; // Full content of the blog post (HTML format)
 }
 
 const NewBlogPostPage = () => {
   const navigate = useNavigate();
-  const { postId } = useParams<{ postId: string }>(); // Get postId from URL for edit mode
-  const isEditMode = !!postId;
+  const { slug } = useParams<{ slug: string }>(); // Get slug from URL for edit mode
+  const isEditMode = !!slug;
 
   const { isAuthenticated, user, loading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState<BlogPostFormData>({
-    postId: null,
+    slug: "",
     title: "",
     excerpt: "",
     author: "",
@@ -54,6 +67,7 @@ const NewBlogPostPage = () => {
     likes: 0,
     comments: 0,
     featured: false,
+    published: true, // Default to published
     content: "",
   });
 
@@ -83,14 +97,26 @@ const NewBlogPostPage = () => {
   // Effect to fetch blog post data if in edit mode
   useEffect(() => {
     const fetchBlogPost = async () => {
-      if (isEditMode && postId) {
+      if (isEditMode && slug) {
         setIsLoadingPost(true);
         try {
-          const response = await blogAPI.getBlogPostById(parseInt(postId));
-          if (response.data.success) {
+          // Try fetching by slug first, fallback to postId if slug looks like a number (old posts)
+          let response;
+          const slugAsNumber = parseInt(slug);
+          const isNumericSlug = !isNaN(slugAsNumber) && String(slugAsNumber) === slug;
+          
+          if (isNumericSlug) {
+            // Slug is actually a number (old postId), use backward compatibility route
+            response = await blogAPI.getBlogPostById(slugAsNumber);
+          } else {
+            // Try slug route
+            response = await blogAPI.getBlogPostBySlug(slug);
+          }
+
+          if (response.data.success && response.data.data) {
             const postData = response.data.data;
             setFormData({
-              postId: postData.postId,
+              slug: postData.slug || generateSlug(postData.title),
               title: postData.title,
               excerpt: postData.excerpt,
               author: postData.author,
@@ -102,7 +128,8 @@ const NewBlogPostPage = () => {
               likes: postData.likes,
               comments: postData.comments,
               featured: postData.featured,
-              content: postData.content,
+              published: postData.published !== undefined ? postData.published : true,
+              content: postData.content || "",
             });
           } else {
             throw new Error(response.data.message || "Failed to fetch blog post.");
@@ -119,7 +146,15 @@ const NewBlogPostPage = () => {
     };
 
     fetchBlogPost();
-  }, [isEditMode, postId, navigate]);
+  }, [isEditMode, slug, navigate]);
+
+  // Auto-generate slug from title only once when title is first entered and slug is empty
+  useEffect(() => {
+    if (!isEditMode && formData.title && !formData.slug) {
+      const newSlug = generateSlug(formData.title);
+      setFormData((prev) => ({ ...prev, slug: newSlug }));
+    }
+  }, [formData.title, isEditMode]); // Only generate when title changes and slug is empty
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -146,29 +181,54 @@ const NewBlogPostPage = () => {
 
     try {
       // Basic validation
-      if (!formData.title || !formData.excerpt || !formData.author || !formData.category || !formData.readTime || !formData.image || !formData.content || formData.postId === null) {
+      if (!formData.title || !formData.excerpt || !formData.author || !formData.category || !formData.readTime || !formData.image || !formData.content || !formData.slug) {
         throw new Error("Please fill in all required fields.");
       }
       if (formData.likes < 0 || formData.comments < 0) {
         throw new Error("Likes and comments cannot be negative.");
       }
 
+      // Ensure slug is generated if empty
+      const finalSlug = formData.slug || generateSlug(formData.title);
+
       const dataToSend = {
         ...formData,
+        slug: finalSlug,
         publishedDate: new Date(formData.publishedDate), // Convert to Date object for backend
       };
 
       let response;
-      if (isEditMode && postId) {
-        response = await blogAPI.updateBlogPost(parseInt(postId), dataToSend);
+      if (isEditMode && slug) {
+        // Check if slug is numeric (old postId), use backward compatibility route
+        const slugAsNumber = parseInt(slug);
+        const isNumericSlug = !isNaN(slugAsNumber) && String(slugAsNumber) === slug;
+        
+        if (isNumericSlug) {
+          // Use postId route for old posts
+          response = await blogAPI.updateBlogPost(slugAsNumber, dataToSend);
+        } else {
+          // Use slug route for new posts
+          response = await blogAPI.updateBlogPostBySlug(slug, dataToSend);
+        }
       } else {
         response = await blogAPI.addBlogPost(dataToSend);
       }
 
-      if (response.data.success) {
-        toast.success(`Blog post ${isEditMode ? "updated" : "added"} successfully!`);
-        setFormData({ // Reset form after successful submission
-          postId: null,
+      // Check response structure - axios wraps response in .data
+      // apiCall returns the axios response directly, so response.data contains the server response
+      const responseData = response?.data;
+      const status = response?.status;
+      
+      // Check for success - server returns { success: true, message: "...", data: ... }
+      const isSuccess = responseData?.success === true;
+      
+      if (isSuccess) {
+        // Show success message
+        toast.success(isEditMode ? "Blog post updated successfully!" : "Blog added successfully!");
+        
+        // Reset form after successful submission
+        setFormData({
+          slug: "",
           title: "",
           excerpt: "",
           author: "",
@@ -180,16 +240,32 @@ const NewBlogPostPage = () => {
           likes: 0,
           comments: 0,
           featured: false,
+          published: true,
           content: "",
         });
-        navigate("/blog"); // Redirect to blog list page
+        
+        // Small delay before navigation to ensure toast is visible
+        setTimeout(() => {
+          navigate("/blog"); // Redirect to blog list page
+        }, 500);
+        return; // Exit early on success - don't execute catch block
       } else {
-        throw new Error(response.data.message || `Failed to ${isEditMode ? "update" : "add"} blog post.`);
+        // Response exists but success is false or missing
+        const errorMessage = responseData?.message || `Failed to ${isEditMode ? "update" : "add"} blog post.`;
+        throw new Error(errorMessage);
       }
     } catch (err: any) {
       console.error(`Failed to ${isEditMode ? "update" : "add"} blog post:`, err);
-      setError(err.response?.data?.message || err.message || `Failed to ${isEditMode ? "update" : "add"} blog post. Please try again.`);
-      toast.error(err.response?.data?.message || err.message || `Failed to ${isEditMode ? "update" : "add"} blog post.`);
+      
+      // Extract error message from various possible locations
+      const errorMessage = 
+        err.response?.data?.message || 
+        err.response?.data?.error || 
+        err.message || 
+        `Failed to ${isEditMode ? "update" : "add"} blog post. Please try again.`;
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -233,21 +309,8 @@ const NewBlogPostPage = () => {
             {/* Basic Information */}
             <h3 className="text-xl font-semibold mb-4 border-b pb-2">Post Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="postId">Post ID</Label>
-                <Input
-                  id="postId"
-                  name="postId"
-                  type="number"
-                  placeholder="e.g., 101"
-                  value={formData.postId === null ? "" : formData.postId}
-                  onChange={handleChange}
-                  required
-                  disabled={isEditMode} // Post ID should not be editable in edit mode
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+              <div className="space-y-2 col-span-full">
+                <Label htmlFor="title">Title *</Label>
                 <Input
                   id="title"
                   name="title"
@@ -257,6 +320,34 @@ const NewBlogPostPage = () => {
                   onChange={handleChange}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug *</Label>
+                <Input
+                  id="slug"
+                  name="slug"
+                  type="text"
+                  placeholder="e.g., the-future-of-ai"
+                  value={formData.slug}
+                  onChange={handleChange}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">URL-friendly identifier</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category *</Label>
+                <Select value={formData.category} onValueChange={handleSelectChange} required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2 col-span-full">
                 <Label htmlFor="excerpt">Excerpt</Label>
@@ -317,31 +408,13 @@ const NewBlogPostPage = () => {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select value={formData.category} onValueChange={handleSelectChange} required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="image">Image URL / Emoji</Label>
-                <Input
-                  id="image"
-                  name="image"
-                  type="text"
-                  placeholder="e.g., 🧠 or https://example.com/blog.png"
+              <div className="space-y-2 col-span-full">
+                <ImageUpload
                   value={formData.image}
-                  onChange={handleChange}
-                  required
+                  onChange={(url) => setFormData((prev) => ({ ...prev, image: url }))}
+                  disabled={isSubmitting}
+                  type="blog"
+                  label="Blog Image / Emoji"
                 />
               </div>
               <div className="space-y-2">
@@ -379,20 +452,27 @@ const NewBlogPostPage = () => {
                 />
                 <Label htmlFor="featured">Mark as Featured</Label>
               </div>
+              <div className="flex items-center space-x-2 col-span-full">
+                <Input
+                  id="published"
+                  name="published"
+                  type="checkbox"
+                  checked={formData.published}
+                  onChange={handleChange}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="published">Published (uncheck to save as draft)</Label>
+              </div>
             </div>
 
             {/* Full Content */}
             <h3 className="text-xl font-semibold mb-4 border-b pb-2 mt-8">Full Content</h3>
             <div className="space-y-2">
-              <Label htmlFor="content">Blog Post Content (Markdown/HTML)</Label>
-              <Textarea
-                id="content"
-                name="content"
-                placeholder="Write your full blog post content here..."
-                value={formData.content}
-                onChange={handleChange}
-                rows={10}
-                required
+              <Label htmlFor="content">Blog Post Content</Label>
+              <RichTextEditor
+                content={formData.content}
+                onChange={(html) => setFormData((prev) => ({ ...prev, content: html }))}
+                placeholder="Start writing your blog post..."
               />
             </div>
 

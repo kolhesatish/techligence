@@ -96,11 +96,11 @@ const App = () => (
               <Route path="/career" element={<Career />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:postId" element={<BlogPostPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/blog/new" element={<NewBlogPostPage />} />
               <Route
-                path="/admin/blog/edit/:postId"
+                path="/admin/blog/edit/:slug"
                 element={<NewBlogPostPage />}
               />
               <Route path="/admin/products/new" element={<AdminProductForm />} />

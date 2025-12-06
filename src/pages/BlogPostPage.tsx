@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { blogAPI } from "@/services/api";
@@ -27,12 +27,12 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
-import ReactMarkdown from 'react-markdown'; // NEW: Import ReactMarkdown
-import remarkGfm from 'remark-gfm'; // NEW: Import remarkGfm for GitHub Flavored Markdown
+import DOMPurify from 'dompurify';
 
 // Define interface for BlogPost to match backend schema
 interface BlogPost {
-  postId: number;
+  postId?: number;
+  slug: string;
   title: string;
   excerpt: string;
   author: string;
@@ -44,28 +44,29 @@ interface BlogPost {
   likes: number;
   comments: number;
   featured: boolean;
-  content: string; // Full content of the blog post
+  published?: boolean;
+  content: string; // Full content of the blog post (HTML format)
 }
 
 const BlogPostPage = () => {
-  const { postId } = useParams<{ postId: string }>(); // Get postId from URL
+  const { slug } = useParams<{ slug: string }>(); // Get slug from URL
   const navigate = useNavigate();
 
   // Fetch single blog post using react-query
   const { data: blogPost, isLoading, isError, error } = useQuery<BlogPost, Error>({
-    queryKey: ["blogPost", postId], // Unique key for this specific post
+    queryKey: ["blogPost", slug], // Unique key for this specific post
     queryFn: async () => {
-      if (!postId) {
-        throw new Error("Blog post ID is missing.");
+      if (!slug) {
+        throw new Error("Blog post slug is missing.");
       }
-      const response = await blogAPI.getBlogPostById(parseInt(postId));
+      const response = await blogAPI.getBlogPostBySlug(slug);
       if (response.data.success) {
         return response.data.data;
       } else {
         throw new Error(response.data.message || "Failed to fetch blog post.");
       }
     },
-    enabled: !!postId, // Only run the query if postId is available
+    enabled: !!slug, // Only run the query if postId is available
   });
 
   const formatDate = (dateString: string) => {
@@ -137,7 +138,17 @@ const BlogPostPage = () => {
             {blogPost.featured && <Badge variant="outline">Featured</Badge>}
           </div>
 
-          <div className="text-6xl mb-4 text-center">{blogPost.image}</div>
+          <div className="mb-4 text-center">
+            {blogPost.image && (blogPost.image.startsWith('http://') || blogPost.image.startsWith('https://')) ? (
+              <img 
+                src={blogPost.image} 
+                alt={blogPost.title}
+                className="w-full max-w-2xl mx-auto h-64 object-cover rounded-lg"
+              />
+            ) : (
+              <div className="text-6xl">{blogPost.image}</div>
+            )}
+          </div>
           <CardTitle className="text-4xl lg:text-5xl font-display font-bold text-center mb-4">
             {blogPost.title}
           </CardTitle>
@@ -171,12 +182,16 @@ const BlogPostPage = () => {
         </CardHeader>
 
         <CardContent className="pt-8">
-          <div className="prose prose-lg dark:prose-invert max-w-none mx-auto">
-            {/* Render the full content here using ReactMarkdown */}
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {blogPost.content}
-            </ReactMarkdown>
-          </div>
+          <div 
+            className="prose prose-lg dark:prose-invert max-w-none mx-auto"
+            dangerouslySetInnerHTML={{ 
+              __html: DOMPurify.sanitize(blogPost.content || '', {
+                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'code', 'pre', 'hr'],
+                ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style'],
+                ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+              })
+            }}
+          />
         </CardContent>
       </Card>
     </div>

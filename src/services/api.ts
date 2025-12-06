@@ -196,15 +196,38 @@ export const productLikesAPI = {
 // Blog API (existing)
 export const blogAPI = {
   getBlogPosts: () =>
-    apiCall(() => api.get("/blogposts")), // Fetches all blog posts
+    apiCall(() => api.get("/blogposts")), // Fetches published blog posts (public)
+  getAllBlogPosts: () =>
+    apiCall(() => api.get("/blogposts/admin/all")), // Fetches all blog posts including drafts (admin only)
   getBlogPostById: (postId: number) =>
-    apiCall(() => api.get(`/blogposts/${postId}`)), // Fetches a single blog post by ID
+    apiCall(() => api.get(`/blogposts/id/${postId}`)), // Fetches a single blog post by ID (published only) - for backward compatibility
+  getBlogPostBySlug: (slug: string) =>
+    apiCall(() => api.get(`/blogposts/slug/${slug}`)), // Fetches a single blog post by slug (published only)
   addBlogPost: (postData: any) =>
     apiCall(() => api.post("/blogposts", postData)),
   updateBlogPost: (postId: number, postData: any) =>
-    apiCall(() => api.put(`/blogposts/${postId}`, postData)),
+    apiCall(() => api.put(`/blogposts/id/${postId}`, postData)), // For backward compatibility
+  updateBlogPostBySlug: (slug: string, postData: any) =>
+    apiCall(() => api.put(`/blogposts/slug/${slug}`, postData)),
   deleteBlogPost: (postId: number) =>
-    apiCall(() => api.delete(`/blogposts/${postId}`)),
+    apiCall(() => api.delete(`/blogposts/id/${postId}`)), // For backward compatibility
+  deleteBlogPostBySlug: (slug: string) =>
+    apiCall(() => api.delete(`/blogposts/slug/${slug}`)),
+  deleteBlogPostBySlugOrId: (slugOrId: string | number) => {
+    // Try slug first, fallback to ID if it's a number
+    if (typeof slugOrId === 'number') {
+      return apiCall(() => api.delete(`/blogposts/id/${slugOrId}`));
+    }
+    return apiCall(() => api.delete(`/blogposts/slug/${slugOrId}`));
+  },
+  uploadBlogImage: (formData: FormData) =>
+    apiCall(() =>
+      api.post("/blogposts/upload-image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+    ),
 };
 
 // Contact API (existing)
