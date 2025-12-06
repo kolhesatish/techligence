@@ -27,6 +27,7 @@ import chatbotRoutes from "./routes/chatbotRoutes.js";
 import adminIngestionRoutes from "./routes/adminIngestionRoutes.js"; // NEW: Import admin ingestion routes
 import otpRoutes from "./routes/otp.js";
 import paymentRoutes from "./routes/payment.js";
+import toolRoutes from "./routes/toolRoutes.js";
 
 // Get __dirname equivalent for ES modules (used for both .env and static files)
 const __filename = fileURLToPath(import.meta.url);
@@ -243,6 +244,7 @@ app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/admin", adminIngestionRoutes); // NEW: Register admin ingestion routes
 app.use("/api/otp", otpRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/tools", toolRoutes);
 
 
 // Error handling middleware

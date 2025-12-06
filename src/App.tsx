@@ -22,6 +22,9 @@ import NewBlogPostPage from "./pages/NewBlogPostPage";
 import CreateJobListingForm from "./components/CreateJobListingForm";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProductForm from "./pages/AdminProductForm";
+import AdminToolForm from "./pages/AdminToolForm";
+import Tools from "./pages/Tools";
+import ToolDetail from "./pages/ToolDetail";
 import About from "./pages/About";
 import Chatbot from "./components/Chatbot";
 import MLTools from "./pages/MLTools"; // Import MLTools
@@ -97,6 +100,8 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
+              <Route path="/tools" element={<Tools />} />
+              <Route path="/tools/:slug" element={<ToolDetail />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/blog/new" element={<NewBlogPostPage />} />
               <Route
@@ -107,6 +112,11 @@ const App = () => (
               <Route
                 path="/admin/products/edit/:productId"
                 element={<AdminProductForm />}
+              />
+              <Route path="/admin/tools/new" element={<AdminToolForm />} />
+              <Route
+                path="/admin/tools/edit/:id"
+                element={<AdminToolForm />}
               />
               {/* Legacy routes - keeping for backward compatibility */}
               <Route path="/admin/products/legacy/new" element={<NewProductPage />} />

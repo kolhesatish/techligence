@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2 } from "lucide-react";
-import { productsAPI, blogAPI } from "@/services/api";
+import { productsAPI, blogAPI, toolsAPI } from "@/services/api";
 import { toast } from "sonner";
 
 interface ImageUploadProps {
@@ -11,7 +11,7 @@ interface ImageUploadProps {
   onChange: (url: string) => void;
   disabled?: boolean;
   label?: string;
-  type?: 'product' | 'blog'; // Type of upload (defaults to 'product')
+  type?: 'product' | 'blog' | 'tool'; // Type of upload (defaults to 'product')
 }
 
 export const ImageUpload = ({ value, onChange, disabled = false, label, type = 'product' }: ImageUploadProps) => {
@@ -54,9 +54,14 @@ export const ImageUpload = ({ value, onChange, disabled = false, label, type = '
       }, 100);
 
       // Use appropriate API based on type
-      const response = type === 'blog' 
-        ? await blogAPI.uploadBlogImage(formData)
-        : await productsAPI.uploadProductImage(formData);
+      let response;
+      if (type === 'blog') {
+        response = await blogAPI.uploadBlogImage(formData);
+      } else if (type === 'tool') {
+        response = await toolsAPI.uploadToolImage(formData);
+      } else {
+        response = await productsAPI.uploadProductImage(formData);
+      }
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -112,7 +117,7 @@ export const ImageUpload = ({ value, onChange, disabled = false, label, type = '
 
   return (
     <div className="space-y-2">
-      <Label>{label || (type === 'blog' ? 'Blog Image' : 'Product Image')}</Label>
+      <Label>{label || (type === 'blog' ? 'Blog Image' : type === 'tool' ? 'Tool Image' : 'Product Image')}</Label>
       <div className="space-y-4">
         {/* File Input */}
         <div
@@ -148,7 +153,7 @@ export const ImageUpload = ({ value, onChange, disabled = false, label, type = '
             <div className="space-y-2">
               <img
                 src={value}
-                alt={type === 'blog' ? 'Blog preview' : 'Product preview'}
+                alt={type === 'blog' ? 'Blog preview' : type === 'tool' ? 'Tool preview' : 'Product preview'}
                 className="max-h-48 mx-auto rounded-lg object-contain"
               />
               <Button

@@ -27,6 +27,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Don't set Content-Type for FormData - let browser/axios set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
     return config;
   },
   (error) => {
@@ -173,11 +177,7 @@ export const productsAPI = {
 
   uploadProductImage: (formData: FormData) =>
     apiCall(() =>
-      api.post("/products/upload-image", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
+      api.post("/products/upload-image", formData)
     ),
 };
 
@@ -222,11 +222,7 @@ export const blogAPI = {
   },
   uploadBlogImage: (formData: FormData) =>
     apiCall(() =>
-      api.post("/blogposts/upload-image", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
+      api.post("/blogposts/upload-image", formData)
     ),
 };
 
@@ -334,4 +330,47 @@ export const ordersAPI = {
     apiCall(() => api.get(`/payment/orders/${orderId}`)),
   updateOrderStatus: (orderId: string, data: { status: string; trackingNumber?: string; notes?: string }) =>
     apiCall(() => api.put(`/payment/orders/${orderId}/status`, data)),
+};
+
+// Tools API
+export const toolsAPI = {
+  getTools: () => apiCall(() => api.get("/tools")),
+  getAllTools: () => apiCall(() => api.get("/tools/all")),
+  getToolBySlug: (slug: string) => apiCall(() => api.get(`/tools/${slug}`)),
+  createTool: (data: {
+    title: string;
+    slug?: string;
+    description: string;
+    htmlContent: string;
+    status?: "draft" | "published";
+    icon?: string;
+    image?: string;
+    category?: string;
+  }) => apiCall(() => api.post("/tools", data)),
+  updateTool: (id: string, data: {
+    title?: string;
+    slug?: string;
+    description?: string;
+    htmlContent?: string;
+    status?: "draft" | "published";
+    icon?: string;
+    image?: string;
+    category?: string;
+  }) => apiCall(() => api.put(`/tools/${id}`, data)),
+  deleteTool: (id: string) => apiCall(() => api.delete(`/tools/${id}`)),
+  uploadHtmlFile: (file: File) => {
+    const formData = new FormData();
+    formData.append("htmlFile", file);
+    return apiCall(() =>
+      api.post("/tools/upload-html", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+    );
+  },
+  uploadToolImage: (formData: FormData) =>
+    apiCall(() =>
+      api.post("/tools/upload-image", formData)
+    ),
 };

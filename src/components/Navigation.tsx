@@ -153,7 +153,12 @@ const Navigation = () => {
             description: "Learn about our mission and values",
             icon: Building,
           },
-          
+          {
+            title: "Tools",
+            href: "/tools",
+            description: "Browse our collection of useful tools",
+            icon: Wrench,
+          },
         ],
       },
       robotlab: {

@@ -9,10 +9,10 @@ import {
   Loader2, Plus, Edit, Trash2, Package, Briefcase, FileText, 
   MapPin, Clock, DollarSign, Building, User, Mail, Phone, 
   Download, Eye, CheckCircle, XCircle, Clock as ClockIcon, GraduationCap,
-  ShoppingCart, Truck, CreditCard, BookOpen
+  ShoppingCart, Truck, CreditCard, BookOpen, Wrench
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { productsAPI, careerAPI, ordersAPI, blogAPI } from "@/services/api";
+import { productsAPI, careerAPI, ordersAPI, blogAPI, toolsAPI } from "@/services/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -163,10 +163,36 @@ interface BlogPost {
   updatedAt?: string;
 }
 
+interface Tool {
+  _id: string;
+  title: string;
+  slug: string;
+  description: string;
+  htmlContent: string;
+  status: "draft" | "published";
+  icon?: string;
+  image?: string;
+  category?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState("products");
+  
+  // Check for tab parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get("tab") || "products";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set("tab", value);
+    window.history.pushState({}, "", newUrl.toString());
+  };
   
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
@@ -205,6 +231,13 @@ const AdminDashboard = () => {
   const [deleteBlogDialogOpen, setDeleteBlogDialogOpen] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState<string | null>(null); // Changed to string for slug
   const [deletingBlogId, setDeletingBlogId] = useState<string | null>(null); // Changed to string for slug
+
+  // Tools state
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(false);
+  const [deleteToolDialogOpen, setDeleteToolDialogOpen] = useState(false);
+  const [toolToDelete, setToolToDelete] = useState<string | null>(null);
+  const [deletingToolId, setDeletingToolId] = useState<string | null>(null);
 
   // Check authentication and role
   useEffect(() => {
@@ -311,6 +344,49 @@ const AdminDashboard = () => {
     }
   }, [isAuthenticated, user, activeTab]);
 
+  // Fetch tools
+  useEffect(() => {
+    const fetchTools = async () => {
+      setToolsLoading(true);
+      try {
+        const response = await toolsAPI.getAllTools();
+        if (response.data.success) {
+          setTools(response.data.data || []);
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch tools:", error);
+        toast.error("Failed to load tools");
+      } finally {
+        setToolsLoading(false);
+      }
+    };
+
+    if (isAuthenticated && user?.role === "admin" && activeTab === "tools") {
+      fetchTools();
+    }
+  }, [isAuthenticated, user, activeTab]);
+
+  // Fetch tools when URL has tab=tools parameter (e.g., after creating a tool)
+  useEffect(() => {
+    if (isAuthenticated && user?.role === "admin" && initialTab === "tools") {
+      const fetchTools = async () => {
+        setToolsLoading(true);
+        try {
+          const response = await toolsAPI.getAllTools();
+          if (response.data.success) {
+            setTools(response.data.data || []);
+          }
+        } catch (error: any) {
+          console.error("Failed to fetch tools:", error);
+          toast.error("Failed to load tools");
+        } finally {
+          setToolsLoading(false);
+        }
+      };
+      fetchTools();
+    }
+  }, [isAuthenticated, user, initialTab]);
+
   const handleDeleteProduct = async (productId: number) => {
     setDeletingProductId(productId);
     try {
@@ -370,6 +446,26 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteTool = async (toolId: string) => {
+    setDeletingToolId(toolId);
+    try {
+      const response = await toolsAPI.deleteTool(toolId);
+      if (response.data.success) {
+        toast.success("Tool deleted successfully");
+        setTools(tools.filter((t) => t._id !== toolId));
+      } else {
+        throw new Error(response.data.message || "Delete failed");
+      }
+    } catch (error: any) {
+      console.error("Failed to delete tool:", error);
+      toast.error(error.response?.data?.message || error.message || "Failed to delete tool");
+    } finally {
+      setDeletingToolId(null);
+      setDeleteToolDialogOpen(false);
+      setToolToDelete(null);
+    }
+  };
+
   const handleUpdateApplicationStatus = async (applicationId: string, status: string) => {
     try {
       const response = await careerAPI.updateApplicationStatus(applicationId, { status });
@@ -417,13 +513,14 @@ const AdminDashboard = () => {
         <p className="text-muted-foreground mt-2">Manage products, jobs, and applications</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="jobs">Job Postings</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="blogs">Blogs</TabsTrigger>
+          <TabsTrigger value="tools">Tools</TabsTrigger>
         </TabsList>
 
         {/* Products Tab */}
@@ -985,6 +1082,150 @@ const AdminDashboard = () => {
             </div>
           )}
         </TabsContent>
+
+        {/* Tools Tab */}
+        <TabsContent value="tools" className="mt-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold">Tools</h2>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setToolsLoading(true);
+                  try {
+                    const response = await toolsAPI.getAllTools();
+                    if (response.data.success) {
+                      setTools(response.data.data || []);
+                      toast.success("Tools list refreshed");
+                    }
+                  } catch (error: any) {
+                    console.error("Failed to refresh tools:", error);
+                    toast.error("Failed to refresh tools");
+                  } finally {
+                    setToolsLoading(false);
+                  }
+                }}
+                disabled={toolsLoading}
+              >
+                {toolsLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
+              <Button onClick={() => navigate("/admin/tools/new")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Tool
+              </Button>
+            </div>
+          </div>
+
+          {toolsLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : tools.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Wrench className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-semibold mb-2">No tools found</p>
+                <p className="text-muted-foreground mb-4">Create your first tool</p>
+                <Button onClick={() => navigate("/admin/tools/new")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Tool
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {tools.map((tool) => (
+                <Card key={tool._id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-12 h-12 bg-gradient-to-br from-accent/20 to-primary/10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {tool.image ? (
+                              <img
+                                src={tool.image}
+                                alt={tool.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-2xl">{tool.icon || "🔧"}</span>
+                            )}
+                          </div>
+                          <CardTitle className="text-xl">{tool.title}</CardTitle>
+                        </div>
+                        <CardDescription className="mt-2">{tool.description}</CardDescription>
+                        <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            Created: {new Date(tool.createdAt).toLocaleDateString()}
+                          </div>
+                          {tool.category && (
+                            <div className="flex items-center gap-1">
+                              <Building className="w-4 h-4" />
+                              {tool.category}
+                            </div>
+                          )}
+                          <Badge variant={tool.status === "published" ? "default" : "secondary"}>
+                            {tool.status === "published" ? "Published" : "Draft"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/tools/edit/${tool._id}`)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (tool.status === "published") {
+                              window.open(`/tools/${tool.slug}`, "_blank");
+                            } else {
+                              toast.info("Tool is in draft status. Publish it first to view publicly.");
+                            }
+                          }}
+                          disabled={tool.status === "draft"}
+                          title={tool.status === "draft" ? "Publish tool first to view" : "View published tool"}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setToolToDelete(tool._id);
+                            setDeleteToolDialogOpen(true);
+                          }}
+                          disabled={deletingToolId === tool._id}
+                        >
+                          {deletingToolId === tool._id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Delete Product Dialog */}
@@ -1042,6 +1283,27 @@ const AdminDashboard = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => blogToDelete && handleDeleteBlog(blogToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Tool Dialog */}
+      <AlertDialog open={deleteToolDialogOpen} onOpenChange={setDeleteToolDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the tool from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => toolToDelete && handleDeleteTool(toolToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
