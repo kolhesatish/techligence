@@ -20,6 +20,9 @@ import {
   Users,
   Award,
   ChevronRight,
+  Factory,
+  HeartPulse,
+  Package,
 } from "lucide-react";
 
 const Index = () => {
@@ -61,18 +64,18 @@ const Index = () => {
     {
       title: "Industrial Automation",
       description: "Streamline manufacturing processes with precision robotics",
-      image: "🏭",
+      icon: Factory,
     },
     {
       title: "Healthcare Assistance",
       description:
         "Support medical professionals with intelligent robotic aids",
-      image: "🏥",
+      icon: HeartPulse,
     },
     {
       title: "Logistics & Warehousing",
       description: "Optimize supply chain operations with automated systems",
-      image: "📦",
+      icon: Package,
     },
   ];
 
@@ -218,7 +221,9 @@ const Index = () => {
                 className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group"
               >
                 <CardHeader>
-                  <div className="text-4xl mb-4">{app.image}</div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                    <app.icon className="w-6 h-6 text-primary" />
+                  </div>
                   <CardTitle className="text-xl group-hover:text-primary transition-colors">
                     {app.title}
                   </CardTitle>
