@@ -207,6 +207,17 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Cron job keep-alive endpoint (to prevent backend from sleeping)
+// Set up a cron job at cron-job.org to ping this endpoint every 5 minutes
+app.get("/api/cron/test", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Cron job test successful - backend is alive",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Root path handler for development
 app.get("/", (req, res) => {
   console.log("Root path accessed");
