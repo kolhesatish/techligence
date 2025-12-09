@@ -32,6 +32,10 @@ import React from "react"; // Import React for useEffect
 import RobotLab from "./pages/RobotLab"; // Import RobotLab page
 import AdvancedURDFController from "./pages/AdvancedURDFController";
 import UserOrders from "./pages/UserOrders";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
+import GDPR from "./pages/GDPR";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -142,6 +146,11 @@ const App = () => (
                 path="/controller/advanced-urdf-controller"
                 element={<AdvancedURDFController />}
               />
+              {/* Legal Pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="/gdpr" element={<GDPR />} />
               {/* <Route path="/robot-lab" element={<RobotLab />} /> */}
               {/* Catch-all route for 404 Not Found */}
               <Route path="*" element={<NotFound />} />

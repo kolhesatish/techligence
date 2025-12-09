@@ -58,6 +58,7 @@ const CheckoutDialog = ({
   const [otpError, setOtpError] = useState("");
   const [resendDisabled, setResendDisabled] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
+  const [isRequestingOtp, setIsRequestingOtp] = useState(false);
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -87,6 +88,12 @@ const CheckoutDialog = ({
   };
 
   const requestOtp = async () => {
+    // Prevent multiple simultaneous requests
+    if (isRequestingOtp) {
+      return;
+    }
+
+    setIsRequestingOtp(true);
     try {
       // Use the new otpAPI.send method with 'checkout' purpose
       const res = await otpAPI.send(formData.email, 'checkout');
@@ -119,6 +126,8 @@ const CheckoutDialog = ({
         "Failed to send OTP. Please try again.";
       toast.error(errorMessage);
       throw new Error(errorMessage); // Re-throw to be caught by the calling function (e.g., Continue to Payment button)
+    } finally {
+      setIsRequestingOtp(false);
     }
   };
 
@@ -453,13 +462,17 @@ const CheckoutDialog = ({
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={resendDisabled}
+                      disabled={resendDisabled || isRequestingOtp}
                       onClick={requestOtp}
                       className="w-full"
                     >
-                      {resendDisabled
-                        ? `Resend OTP in ${resendTimer}s`
-                        : "Resend OTP"}
+                      {isRequestingOtp ? (
+                        "Sending..."
+                      ) : resendDisabled ? (
+                        `Resend OTP in ${resendTimer}s`
+                      ) : (
+                        "Resend OTP"
+                      )}
                     </Button>
                   </div>
                 )}
@@ -514,6 +527,7 @@ const CheckoutDialog = ({
                     }
                   }}
                   disabled={
+                    isRequestingOtp ||
                     !formData.firstName ||
                     !formData.lastName ||
                     !formData.email ||
@@ -523,7 +537,33 @@ const CheckoutDialog = ({
                     !formData.zipCode
                   }
                 >
-                  Continue to Payment
+                  {isRequestingOtp ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Sending OTP...
+                    </>
+                  ) : (
+                    "Continue to Payment"
+                  )}
                 </Button>
               </>
             )}
