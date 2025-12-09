@@ -52,14 +52,17 @@ export async function sendOTP(email, otp) {
   }
 
   // Try to send email with configured credentials - simplified service-based config
+  // Use aggressive timeouts since Render.com may block SMTP connections
   const transporter = nodemailer.createTransport({
     service: process.env.SMTP_SERVICE || "gmail",
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    connectionTimeout: 10000, // 10 seconds connection timeout
-    socketTimeout: 10000, // 10 seconds socket timeout
+    connectionTimeout: 5000, // 5 seconds connection timeout (reduced for faster failure)
+    socketTimeout: 5000, // 5 seconds socket timeout
+    greetingTimeout: 5000, // 5 seconds greeting timeout
+    requireTLS: false, // Don't require TLS (may help with connection issues)
   });
 
   const mailOptions = {
@@ -78,9 +81,10 @@ export async function sendOTP(email, otp) {
   };
 
   try {
-    // Wrap sendMail in Promise.race with timeout to ensure it fails fast
+    // Wrap sendMail in Promise.race with aggressive timeout to fail fast
+    // Render.com may block SMTP connections, so we need to fail quickly
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Email sending timeout after 15 seconds")), 15000);
+      setTimeout(() => reject(new Error("Email sending timeout after 8 seconds")), 8000);
     });
 
     const sendMailPromise = transporter.sendMail(mailOptions);
@@ -89,14 +93,28 @@ export async function sendOTP(email, otp) {
     console.log(`Email sent to ${email}. MessageId: ${info.messageId}`);
     return { ...info, emailSent: true };
   } catch (err) {
-    console.error("Failed to send email:");
-    console.error(err);
+    // Check if it's a connection timeout (common on Render.com)
+    const isConnectionError = err.code === 'ETIMEDOUT' || 
+                              err.code === 'ECONNREFUSED' || 
+                              err.code === 'ENOTFOUND' ||
+                              err.message?.includes('timeout') ||
+                              err.message?.includes('Connection timeout');
+    
+    if (isConnectionError) {
+      console.warn(`⚠️  Email connection failed (likely blocked by hosting provider): ${err.message}`);
+    } else {
+      console.error("Failed to send email:", err);
+    }
     
     // In both development and production, log OTP when email fails instead of throwing
     console.log("\n📧 ===== OTP EMAIL (Email Service Failed - OTP Logged) =====");
     console.log(`   To: ${email}`);
     console.log(`   OTP Code: ${otp}`);
-    console.log(`   Error: ${err.message}`);
+    console.log(`   Error: ${err.message || err.code || 'Unknown error'}`);
+    if (isConnectionError) {
+      console.log(`   Note: SMTP connection may be blocked by hosting provider (Render.com)`);
+      console.log(`   Consider using a transactional email service (SendGrid, Mailgun, etc.)`);
+    }
     console.log("==================================================\n");
     
     // Return a success-like object so registration can continue
@@ -104,7 +122,8 @@ export async function sendOTP(email, otp) {
     return { 
       messageId: "email-failed-otp-logged", 
       emailSent: false,
-      error: err.message 
+      error: err.message || err.code || 'Unknown error',
+      connectionError: isConnectionError
     };
   }
 }

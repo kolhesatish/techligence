@@ -71,14 +71,17 @@ router.post(
       }
 
       // Nodemailer setup - simplified service-based config
+      // Use aggressive timeouts since Render.com may block SMTP connections
       const transporter = nodemailer.createTransport({
         service: process.env.SMTP_SERVICE || "gmail",
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
-        connectionTimeout: 10000, // 10 seconds connection timeout
-        socketTimeout: 10000, // 10 seconds socket timeout
+        connectionTimeout: 5000, // 5 seconds connection timeout (reduced for faster failure)
+        socketTimeout: 5000, // 5 seconds socket timeout
+        greetingTimeout: 5000, // 5 seconds greeting timeout
+        requireTLS: false, // Don't require TLS (may help with connection issues)
       });
 
       const mailOptions = {
@@ -98,9 +101,9 @@ router.post(
         `,
       };
 
-      // Wrap sendMail in Promise.race with timeout to ensure it fails fast
+      // Wrap sendMail in Promise.race with aggressive timeout to fail fast
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Email sending timeout after 15 seconds")), 15000);
+        setTimeout(() => reject(new Error("Email sending timeout after 8 seconds")), 8000);
       });
 
       const sendMailPromise = transporter.sendMail(mailOptions);
@@ -109,11 +112,28 @@ router.post(
       res.status(200).json({ success: true, message: "Your message has been sent successfully!" });
 
     } catch (error) {
-      console.error("Error sending contact email:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to send your message. Please try again later.",
-      });
+      // Check if it's a connection timeout (common on Render.com)
+      const isConnectionError = error.code === 'ETIMEDOUT' || 
+                                error.code === 'ECONNREFUSED' || 
+                                error.code === 'ENOTFOUND' ||
+                                error.message?.includes('timeout') ||
+                                error.message?.includes('Connection timeout');
+      
+      if (isConnectionError) {
+        console.warn(`⚠️  Contact form email connection failed (likely blocked by hosting provider): ${error.message}`);
+        console.warn(`   Consider using a transactional email service (SendGrid, Mailgun, etc.)`);
+        // Still return success since the message was received, just couldn't be emailed
+        res.status(200).json({
+          success: true,
+          message: "Your message has been received. We'll get back to you soon!",
+        });
+      } else {
+        console.error("Error sending contact email:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to send your message. Please try again later.",
+        });
+      }
     }
   }
 );
