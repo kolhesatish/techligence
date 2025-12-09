@@ -40,11 +40,15 @@ export async function sendOTP(email, otp) {
     return { messageId: "dev-mode-otp-logged" };
   }
 
-  // If email config is missing in production, throw error
+  // If email config is missing in production, log OTP instead of throwing
   if (!hasEmailConfig) {
     console.error("Email credentials not configured!");
     console.error("   Set EMAIL_USER and EMAIL_PASS in server/.env");
-    throw new Error("Email service not configured");
+    console.log("\n📧 ===== OTP EMAIL (Production Mode - Not Sent) =====");
+    console.log(`   To: ${email}`);
+    console.log(`   OTP Code: ${otp}`);
+    console.log("==================================================\n");
+    return { messageId: "prod-mode-otp-logged-no-config", emailSent: false };
   }
 
   // Try to send email with configured credentials - simplified service-based config
@@ -83,20 +87,24 @@ export async function sendOTP(email, otp) {
     const info = await Promise.race([sendMailPromise, timeoutPromise]);
     
     console.log(`Email sent to ${email}. MessageId: ${info.messageId}`);
-    return info;
+    return { ...info, emailSent: true };
   } catch (err) {
     console.error("Failed to send email:");
     console.error(err);
     
-    // In development, don't throw error, just log it
-    if (isDevelopment) {
-      console.log("\n📧 ===== OTP EMAIL (Fallback - Email Failed) =====");
-      console.log(`   To: ${email}`);
-      console.log(`   OTP Code: ${otp}`);
-      console.log("==================================================\n");
-      return { messageId: "dev-mode-otp-logged-after-error" };
-    }
+    // In both development and production, log OTP when email fails instead of throwing
+    console.log("\n📧 ===== OTP EMAIL (Email Service Failed - OTP Logged) =====");
+    console.log(`   To: ${email}`);
+    console.log(`   OTP Code: ${otp}`);
+    console.log(`   Error: ${err.message}`);
+    console.log("==================================================\n");
     
-    throw err; // In production, throw the error
+    // Return a success-like object so registration can continue
+    // The calling code can check if email was actually sent
+    return { 
+      messageId: "email-failed-otp-logged", 
+      emailSent: false,
+      error: err.message 
+    };
   }
 }

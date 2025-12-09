@@ -12,11 +12,22 @@ router.post("/send", async (req, res) => {
   saveOTP(email, otp);
 
   try {
-    await sendOTP(email, otp);
-    return res.json({ success: true, message: "OTP sent to email" });
+    const emailResult = await sendOTP(email, otp);
+    if (emailResult.emailSent === false) {
+      return res.json({ 
+        success: true, 
+        message: "OTP could not be sent via email. Please contact support.",
+      });
+    } else {
+      return res.json({ success: true, message: "OTP sent to email" });
+    }
   } catch (err) {
-    console.error("Failed to send OTP:", err);
-    return res.status(500).json({ success: false, error: "Failed to send OTP" });
+    // This should rarely happen now, but handle it just in case
+    console.error("Unexpected error in email sending:", err);
+    return res.json({ 
+      success: true, 
+      message: "OTP could not be sent via email. Please contact support.",
+    });
   }
 });
 

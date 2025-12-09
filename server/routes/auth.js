@@ -98,26 +98,36 @@ router.post(
       saveOTP(email, otp);
       
       try {
-        await sendOTP(email, otp);
-        res.status(201).json({
-          success: true,
-          message: "User registered. OTP sent to email.",
-          data: { userId: user._id },
-        });
-      } catch (emailError) {
-        // In development, continue even if email fails (OTP is logged to console)
-        const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-        if (isDevelopment) {
-          console.warn(" Email sending failed, but continuing in development mode");
+        const emailResult = await sendOTP(email, otp);
+        
+        // Check if email was actually sent
+        if (emailResult.emailSent === false) {
+          // Email failed but OTP is saved - registration succeeds
+          console.warn(`⚠️  User registered but email failed to send. OTP logged in console.`);
           res.status(201).json({
             success: true,
-            message: "User registered. Check console for OTP code (development mode).",
-            data: { userId: user._id, otp: otp }, // Include OTP in dev mode for testing
+            message: "User registered. OTP could not be sent via email. Please contact support.",
+            data: { userId: user._id },
+            emailSent: false,
           });
         } else {
-          // In production, return error if email fails
-          throw emailError;
+          // Email sent successfully
+          res.status(201).json({
+            success: true,
+            message: "User registered. OTP sent to email.",
+            data: { userId: user._id },
+          });
         }
+      } catch (emailError) {
+        // This should rarely happen now, but handle it just in case
+        console.error("Unexpected error in email sending:", emailError);
+        // Still allow registration to succeed
+        res.status(201).json({
+          success: true,
+          message: "User registered. OTP could not be sent via email. Please contact support.",
+          data: { userId: user._id },
+          emailSent: false,
+        });
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -186,24 +196,25 @@ router.post(
         saveOTP(email, otp);
         
         try {
-          await sendOTP(email, otp);
-          return res.status(401).json({
-            success: false,
-            message: "Account is not activated. A new OTP has been sent to your email.",
-          });
-        } catch (emailError) {
-          // In development, continue even if email fails
-          const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-          if (isDevelopment) {
-            console.warn(" Email sending failed, but continuing in development mode");
+          const emailResult = await sendOTP(email, otp);
+          if (emailResult.emailSent === false) {
             return res.status(401).json({
               success: false,
-              message: "Account is not activated. Check console for OTP code (development mode).",
-              otp: otp, // Include OTP in dev mode for testing
+              message: "Account is not activated. OTP could not be sent via email. Please contact support.",
             });
           } else {
-            throw emailError;
+            return res.status(401).json({
+              success: false,
+              message: "Account is not activated. A new OTP has been sent to your email.",
+            });
           }
+        } catch (emailError) {
+          // This should rarely happen now, but handle it just in case
+          console.error("Unexpected error in email sending:", emailError);
+          return res.status(401).json({
+            success: false,
+            message: "Account is not activated. OTP could not be sent via email. Please contact support.",
+          });
         }
       }
 
@@ -489,20 +500,22 @@ router.post("/resend-otp", async (req, res) => {
     saveOTP(email, otp);
     
     try {
-      await sendOTP(email, otp);
-      res.json({ success: true, message: "A new OTP has been sent to your email." });
-    } catch (emailError) {
-      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-      if (isDevelopment) {
-        console.warn(" Email sending failed, but continuing in development mode");
+      const emailResult = await sendOTP(email, otp);
+      if (emailResult.emailSent === false) {
         res.json({ 
           success: true, 
-          message: "Check console for OTP code (development mode).",
-          otp: otp // Include OTP in dev mode for testing
+          message: "OTP could not be sent via email. Please contact support.",
         });
       } else {
-        throw emailError;
+        res.json({ success: true, message: "A new OTP has been sent to your email." });
       }
+    } catch (emailError) {
+      // This should rarely happen now, but handle it just in case
+      console.error("Unexpected error in email sending:", emailError);
+      res.json({ 
+        success: true, 
+        message: "OTP could not be sent via email. Please contact support.",
+      });
     }
   } catch (error) {
     console.error("Resend OTP error:", error);
@@ -523,20 +536,22 @@ router.post("/forgot-password", async (req, res) => {
     saveOTP(email, otp);
     
     try {
-      await sendOTP(email, otp);
-      res.json({ success: true, message: "An OTP has been sent to your email to reset your password." });
-    } catch (emailError) {
-      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-      if (isDevelopment) {
-        console.warn(" Email sending failed, but continuing in development mode");
+      const emailResult = await sendOTP(email, otp);
+      if (emailResult.emailSent === false) {
         res.json({ 
           success: true, 
-          message: "Check console for OTP code (development mode).",
-          otp: otp // Include OTP in dev mode for testing
+          message: "OTP could not be sent via email. Please contact support.",
         });
       } else {
-        throw emailError;
+        res.json({ success: true, message: "An OTP has been sent to your email to reset your password." });
       }
+    } catch (emailError) {
+      // This should rarely happen now, but handle it just in case
+      console.error("Unexpected error in email sending:", emailError);
+      res.json({ 
+        success: true, 
+        message: "OTP could not be sent via email. Please contact support.",
+      });
     }
   } catch (error) {
     console.error("Forgot password error:", error);
