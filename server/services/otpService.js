@@ -47,20 +47,19 @@ export async function sendOTP(email, otp) {
     throw new Error("Email service not configured");
   }
 
-  // Try to send email with configured credentials
+  // Try to send email with configured credentials - simplified service-based config
   const transporter = nodemailer.createTransport({
     service: process.env.SMTP_SERVICE || "gmail",
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587,
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_USER || process.env.SMTP_USER,
-      pass: process.env.EMAIL_PASS || process.env.SMTP_PASS,
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 10000, // 10 seconds connection timeout
+    socketTimeout: 10000, // 10 seconds socket timeout
   });
 
   const mailOptions = {
-    from: `"Techligence" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`,
+    from: `"Techligence" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Your OTP Code",
     text: `Your OTP code is: ${otp}. This code will expire in 5 minutes.`,
@@ -75,7 +74,14 @@ export async function sendOTP(email, otp) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    // Wrap sendMail in Promise.race with timeout to ensure it fails fast
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Email sending timeout after 15 seconds")), 15000);
+    });
+
+    const sendMailPromise = transporter.sendMail(mailOptions);
+    const info = await Promise.race([sendMailPromise, timeoutPromise]);
+    
     console.log(`Email sent to ${email}. MessageId: ${info.messageId}`);
     return info;
   } catch (err) {

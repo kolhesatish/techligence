@@ -45,15 +45,40 @@ router.post(
       const message = escapeHTML(req.body.message);
       const inquiryType = escapeHTML(req.body.inquiryType);
 
-      // Nodemailer setup (credentials from .env, loaded in server.js)
+      // Check if email config exists
+      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+      const hasEmailConfig = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+
+      // In development mode without email config, return success without sending
+      if (isDevelopment && !hasEmailConfig) {
+        console.log("\n📧 ===== CONTACT FORM EMAIL (Development Mode - Not Sent) =====");
+        console.log(`   From: ${email}`);
+        console.log(`   Subject: ${subject}`);
+        console.log(`   Email not sent - SMTP credentials not configured`);
+        console.log(`   💡 Add EMAIL_USER and EMAIL_PASS to server/.env to enable email sending`);
+        console.log("==================================================\n");
+        return res.status(200).json({ success: true, message: "Your message has been sent successfully!" });
+      }
+
+      // If email config is missing in production, return error
+      if (!hasEmailConfig) {
+        console.error("Email credentials not configured!");
+        console.error("   Set EMAIL_USER and EMAIL_PASS in server/.env");
+        return res.status(500).json({
+          success: false,
+          message: "Email service not configured. Please contact support.",
+        });
+      }
+
+      // Nodemailer setup - simplified service-based config
       const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST,
-        port: parseInt(process.env.EMAIL_PORT || "587", 10),
-        secure: (process.env.EMAIL_PORT || "587") === "465", // true for 465, false for others
+        service: process.env.SMTP_SERVICE || "gmail",
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
+        connectionTimeout: 10000, // 10 seconds connection timeout
+        socketTimeout: 10000, // 10 seconds socket timeout
       });
 
       const mailOptions = {
@@ -73,7 +98,14 @@ router.post(
         `,
       };
 
-      await transporter.sendMail(mailOptions);
+      // Wrap sendMail in Promise.race with timeout to ensure it fails fast
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Email sending timeout after 15 seconds")), 15000);
+      });
+
+      const sendMailPromise = transporter.sendMail(mailOptions);
+      await Promise.race([sendMailPromise, timeoutPromise]);
+      
       res.status(200).json({ success: true, message: "Your message has been sent successfully!" });
 
     } catch (error) {
