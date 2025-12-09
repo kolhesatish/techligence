@@ -92,13 +92,6 @@ app.use(
   }),
 );
 
-
-if (isDevelopment) {
-  console.log(" Rate limiting: DISABLED (development mode)");
-} else {
-  console.log("Rate limiting: ENABLED (production mode)");
-}
-
 // CORS configuration by default
 /*app.use(
   cors({
