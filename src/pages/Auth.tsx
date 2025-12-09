@@ -20,7 +20,6 @@ import {
   Bot,
   Shield,
   Zap,
-  Github,
   Chrome,
   Eye,
   EyeOff,
@@ -65,6 +64,44 @@ const Auth = () => {
   // Access authentication functions from context
   const { login, register, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate(); // Initialize useNavigate
+
+  // Handle Google OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+    const error = urlParams.get("error");
+    const googleAuth = urlParams.get("google_auth");
+
+    if (error) {
+      toast.error(`Google authentication failed: ${error}`);
+      // Clean up URL
+      window.history.replaceState({}, document.title, "/auth");
+      return;
+    }
+
+    if (token && googleAuth === "success") {
+      // Store token
+      localStorage.setItem("auth_token", token);
+      
+      // Fetch user profile
+      authAPI.getProfile()
+        .then((response) => {
+          if (response.data.success) {
+            toast.success("Successfully signed in with Google!");
+            // Clean up URL
+            window.history.replaceState({}, document.title, "/auth");
+            // Reload to update auth context
+            window.location.href = "/";
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to fetch profile after Google auth:", error);
+          toast.error("Failed to complete Google authentication.");
+          localStorage.removeItem("auth_token");
+          window.history.replaceState({}, document.title, "/auth");
+        });
+    }
+  }, []);
 
   // Redirect if already authenticated (e.g., user lands on /auth but is already logged in)
   // But don't redirect if we're showing OTP verification
@@ -283,6 +320,18 @@ const Auth = () => {
       if (error.response?.data?.otp) {
         toast.info(`OTP: ${error.response.data.otp}`, { duration: 10000 });
       }
+    }
+  };
+
+  // Handle Google authentication
+  const handleGoogleAuth = async () => {
+    try {
+      // Redirect to backend Google OAuth endpoint
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+      window.location.href = `${API_BASE_URL}/auth/google`;
+    } catch (error: any) {
+      console.error("Google auth failed:", error);
+      toast.error("Failed to initiate Google authentication. Please try again.");
     }
   };
 
@@ -568,16 +617,14 @@ const Auth = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" className="gap-2 rounded-md"> {/* Added rounded-md */}
-                          <Github className="h-4 w-4" />
-                          GitHub
-                        </Button>
-                        <Button variant="outline" className="gap-2 rounded-md"> {/* Added rounded-md */}
-                          <Chrome className="h-4 w-4" />
-                          Google
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full gap-2 rounded-md"
+                        onClick={handleGoogleAuth}
+                      >
+                        <Chrome className="h-4 w-4" />
+                        Google
+                      </Button>
                     </TabsContent>
 
                     {/* Sign Up Form */}
@@ -746,16 +793,14 @@ const Auth = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" className="gap-2 rounded-md"> {/* Added rounded-md */}
-                          <Github className="h-4 w-4" />
-                          GitHub
-                        </Button>
-                        <Button variant="outline" className="gap-2 rounded-md"> {/* Added rounded-md */}
-                          <Chrome className="h-4 w-4" />
-                          Google
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full gap-2 rounded-md"
+                        onClick={handleGoogleAuth}
+                      >
+                        <Chrome className="h-4 w-4" />
+                        Google
+                      </Button>
                     </TabsContent>
                   </Tabs>
                   )}
