@@ -7,7 +7,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
-import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -93,23 +92,6 @@ app.use(
   }),
 );
 
-// Rate limiting - disabled in development, more permissive in production
-const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 10000 : 1000, // Very high limit in dev, normal in production
-  message: "Too many requests from this IP, please try again later.",
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skip: (req) => {
-    // Skip rate limiting in development mode
-    return isDevelopment;
-  },
-});
-
-// Always apply the limiter (it will skip internally in development)
-app.use(limiter);
 
 if (isDevelopment) {
   console.log(" Rate limiting: DISABLED (development mode)");

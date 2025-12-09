@@ -1,7 +1,6 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
-import rateLimit from "express-rate-limit";
 import User from "../models/User.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { resolveSoa } from "dns";
@@ -9,20 +8,6 @@ import { sendOTP, generateOTP, saveOTP, verifyOTP } from "../services/otpService
 
 const router = express.Router();
 
-// Rate limiting for auth routes - disabled in development
-const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 1000 : 5, // Very high limit in dev, strict in production
-  message: "Too many authentication attempts, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting in development mode
-    return isDevelopment;
-  },
-});
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -43,7 +28,6 @@ const generateToken = (userId) => {
 // Register new user
 router.post(
   "/register",
-  authLimiter,
   [
     body("firstName")
       .isLength({ min: 2, max: 50 })
@@ -150,7 +134,6 @@ router.post(
 // Login user
 router.post(
   "/login",
-  authLimiter,
   [
     body("email").isEmail().withMessage("Please provide a valid email"),
     body("password").notEmpty().withMessage("Password is required"),
