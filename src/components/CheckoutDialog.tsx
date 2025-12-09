@@ -88,8 +88,8 @@ const CheckoutDialog = ({
 
   const requestOtp = async () => {
     try {
-      // Use the new otpAPI.send method
-      const res = await otpAPI.send(formData.email);
+      // Use the new otpAPI.send method with 'checkout' purpose
+      const res = await otpAPI.send(formData.email, 'checkout');
 
       // Axios wraps the response in a 'data' property
       if (res.data.success) {

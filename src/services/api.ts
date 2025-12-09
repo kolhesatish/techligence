@@ -298,8 +298,8 @@ export const chatbotAPI = {
 
 // NEW: OTP API
 export const otpAPI = {
-  send: (email: string) =>
-    apiCall(() => api.post("/otp/send", { email })),
+  send: (email: string, purpose?: 'checkout' | 'verification') =>
+    apiCall(() => api.post("/otp/send", { email, purpose: purpose || 'verification' })),
   verify: (email: string, otp: string) =>
     apiCall(() => api.post("/otp/verify", { email, otp })),
 };

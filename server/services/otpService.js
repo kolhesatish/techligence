@@ -1,4 +1,5 @@
-import nodemailer from "nodemailer";
+import formData from 'form-data';
+import Mailgun from 'mailgun.js';
 
 const otps = new Map(); // 
 
@@ -25,105 +26,174 @@ export function verifyOTP(email, inputOtp) {
   if (isValid) otps.delete(email); // remove after use
   return isValid;
 }
-export async function sendOTP(email, otp) {
-  const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
-  const hasEmailConfig = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+// Initialize Mailgun client (singleton pattern)
+let mailgunClient = null;
+let mailgunDomain = null;
 
-  // In development mode without email config, just log the OTP
-  if (isDevelopment && !hasEmailConfig) {
+const initializeMailgun = () => {
+  if (!mailgunClient) {
+    const mailgunApiKey = process.env.MAILGUN_API_KEY;
+    const domain = process.env.MAILGUN_DOMAIN;
+
+    if (!mailgunApiKey || !domain) {
+      return null;
+    }
+
+    const mailgun = new Mailgun(formData);
+    mailgunClient = mailgun.client({
+      username: 'api',
+      key: mailgunApiKey,
+    });
+    mailgunDomain = domain;
+  }
+  return { mailgunClient, mailgunDomain };
+};
+
+// Email templates
+const getOTPTemplate = (otp, purpose = 'verification') => {
+  const purposeText = purpose === 'checkout' 
+    ? 'complete your checkout' 
+    : 'verify your account';
+  
+  return {
+    text: `Your OTP code is: ${otp}. This code will expire in 5 minutes. Use it to ${purposeText}.`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your OTP Code</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 40px 0;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Techligence</h1>
+                  </td>
+                </tr>
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 24px;">Your OTP Code</h2>
+                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                      Use the code below to ${purposeText}:
+                    </p>
+                    <!-- OTP Box -->
+                    <div style="background-color: #f8f9fa; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                      <div style="font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                        ${otp}
+                      </div>
+                    </div>
+                    <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+                      This code will expire in <strong>5 minutes</strong>.
+                    </p>
+                    <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 10px 0 0 0;">
+                      If you didn't request this code, please ignore this email.
+                    </p>
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 8px 8px;">
+                    <p style="color: #999999; font-size: 12px; margin: 0;">
+                      © ${new Date().getFullYear()} Techligence. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `
+  };
+};
+
+export async function sendOTP(email, otp, purpose = 'verification') {
+  const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === "development";
+  const hasMailgunConfig = process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN;
+
+  // In development mode without Mailgun config, just log the OTP
+  if (isDevelopment && !hasMailgunConfig) {
     console.log("\n📧 ===== OTP EMAIL (Development Mode - Not Sent) =====");
     console.log(`   To: ${email}`);
+    console.log(`   Purpose: ${purpose}`);
     console.log(`   OTP Code: ${otp}`);
-    console.log(`    Email not sent - SMTP credentials not configured`);
-    console.log(`   💡 Add EMAIL_USER and EMAIL_PASS to server/.env to enable email sending`);
+    console.log(`   Email not sent - Mailgun credentials not configured`);
+    console.log(`   💡 Add MAILGUN_API_KEY and MAILGUN_DOMAIN to server/.env`);
     console.log("==================================================\n");
-    return { messageId: "dev-mode-otp-logged" };
+    return { messageId: "dev-mode-otp-logged", emailSent: false };
   }
 
-  // If email config is missing in production, log OTP instead of throwing
-  if (!hasEmailConfig) {
-    console.error("Email credentials not configured!");
-    console.error("   Set EMAIL_USER and EMAIL_PASS in server/.env");
+  // If Mailgun config is missing in production, log OTP instead of throwing
+  if (!hasMailgunConfig) {
+    console.error("Mailgun credentials not configured!");
+    console.error("   Set MAILGUN_API_KEY and MAILGUN_DOMAIN in server/.env");
     console.log("\n📧 ===== OTP EMAIL (Production Mode - Not Sent) =====");
     console.log(`   To: ${email}`);
+    console.log(`   Purpose: ${purpose}`);
     console.log(`   OTP Code: ${otp}`);
     console.log("==================================================\n");
     return { messageId: "prod-mode-otp-logged-no-config", emailSent: false };
   }
 
-  // Try to send email with configured credentials - simplified service-based config
-  // Use aggressive timeouts since Render.com may block SMTP connections
-  const transporter = nodemailer.createTransport({
-    service: process.env.SMTP_SERVICE || "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    connectionTimeout: 5000, // 5 seconds connection timeout (reduced for faster failure)
-    socketTimeout: 5000, // 5 seconds socket timeout
-    greetingTimeout: 5000, // 5 seconds greeting timeout
-    requireTLS: false, // Don't require TLS (may help with connection issues)
-  });
+  // Initialize Mailgun
+  const mailgun = initializeMailgun();
+  if (!mailgun) {
+    console.error("Failed to initialize Mailgun client");
+    return { messageId: "mailgun-init-failed", emailSent: false };
+  }
 
-  const mailOptions = {
-    from: `"Techligence" <${process.env.EMAIL_USER}>`,
+  const { mailgunClient, mailgunDomain } = mailgun;
+  const template = getOTPTemplate(otp, purpose);
+  const fromEmail = process.env.MAILGUN_FROM_EMAIL || `noreply@${mailgunDomain}`;
+  const fromName = process.env.MAILGUN_FROM_NAME || "Techligence";
+
+  const messageData = {
+    from: `${fromName} <${fromEmail}>`,
     to: email,
-    subject: "Your OTP Code",
-    text: `Your OTP code is: ${otp}. This code will expire in 5 minutes.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>Your OTP Code</h2>
-        <p>Your OTP code is: <strong style="font-size: 24px; color: #2563eb;">${otp}</strong></p>
-        <p>This code will expire in 5 minutes.</p>
-        <p>If you didn't request this code, please ignore this email.</p>
-      </div>
-    `,
+    subject: purpose === 'checkout' 
+      ? 'Your Checkout OTP Code - Techligence' 
+      : 'Your Verification OTP Code - Techligence',
+    text: template.text,
+    html: template.html,
   };
 
   try {
-    // Wrap sendMail in Promise.race with aggressive timeout to fail fast
-    // Render.com may block SMTP connections, so we need to fail quickly
+    // Send email via Mailgun with timeout
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Email sending timeout after 8 seconds")), 8000);
+      setTimeout(() => reject(new Error("Mailgun API timeout after 10 seconds")), 10000);
     });
 
-    const sendMailPromise = transporter.sendMail(mailOptions);
-    const info = await Promise.race([sendMailPromise, timeoutPromise]);
-    
-    console.log(`Email sent to ${email}. MessageId: ${info.messageId}`);
-    return { ...info, emailSent: true };
+    const sendPromise = mailgunClient.messages.create(mailgunDomain, messageData);
+    const response = await Promise.race([sendPromise, timeoutPromise]);
+
+    console.log(`✅ Email sent via Mailgun to ${email}. Message ID: ${response.id}`);
+    return { 
+      messageId: response.id, 
+      emailSent: true 
+    };
   } catch (err) {
-    // Check if it's a connection timeout (common on Render.com)
-    const isConnectionError = err.code === 'ETIMEDOUT' || 
-                              err.code === 'ECONNREFUSED' || 
-                              err.code === 'ENOTFOUND' ||
-                              err.message?.includes('timeout') ||
-                              err.message?.includes('Connection timeout');
+    console.error("Failed to send email via Mailgun:", err);
     
-    if (isConnectionError) {
-      console.warn(`⚠️  Email connection failed (likely blocked by hosting provider): ${err.message}`);
-    } else {
-      console.error("Failed to send email:", err);
-    }
-    
-    // In both development and production, log OTP when email fails instead of throwing
-    console.log("\n📧 ===== OTP EMAIL (Email Service Failed - OTP Logged) =====");
+    // Log OTP when email fails
+    console.log("\n📧 ===== OTP EMAIL (Mailgun Failed - OTP Logged) =====");
     console.log(`   To: ${email}`);
+    console.log(`   Purpose: ${purpose}`);
     console.log(`   OTP Code: ${otp}`);
     console.log(`   Error: ${err.message || err.code || 'Unknown error'}`);
-    if (isConnectionError) {
-      console.log(`   Note: SMTP connection may be blocked by hosting provider (Render.com)`);
-      console.log(`   Consider using a transactional email service (SendGrid, Mailgun, etc.)`);
-    }
     console.log("==================================================\n");
     
-    // Return a success-like object so registration can continue
-    // The calling code can check if email was actually sent
     return { 
-      messageId: "email-failed-otp-logged", 
+      messageId: "mailgun-failed-otp-logged", 
       emailSent: false,
-      error: err.message || err.code || 'Unknown error',
-      connectionError: isConnectionError
+      error: err.message || err.code || 'Unknown error'
     };
   }
 }

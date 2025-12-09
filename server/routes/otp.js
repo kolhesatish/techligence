@@ -5,14 +5,14 @@ const router = express.Router();
 
 // send OTP
 router.post("/send", async (req, res) => {
-  const { email } = req.body;
+  const { email, purpose } = req.body; // purpose can be 'checkout' or 'verification'
   if (!email) return res.status(400).json({ success: false, error: "Email is required" });
 
   const otp = generateOTP();
   saveOTP(email, otp);
 
   try {
-    const emailResult = await sendOTP(email, otp);
+    const emailResult = await sendOTP(email, otp, purpose || 'verification');
     if (emailResult.emailSent === false) {
       return res.json({ 
         success: true, 
