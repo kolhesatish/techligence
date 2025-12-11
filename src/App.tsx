@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"; //
 import { AuthProvider } from "./context/AuthContext"; // Ensure correct path to AuthContext
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer"; // Import Footer
+import ScrollToTop from "./components/ScrollToTop";
+import BreadcrumbNav from "./components/BreadcrumbNav";
 
 import Index from "./pages/Index";
 import Products from "./pages/Products";
@@ -36,6 +38,8 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
 import GDPR from "./pages/GDPR";
+import ProjectShowcase from "./pages/ProjectShowcase";
+import Internship from "./pages/Internship";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,24 +49,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-/**
- * ScrollToTop Component
- * This component listens for route changes and scrolls the window to the top.
- */
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
-
-  React.useEffect(() => {
-    // Scroll to the top of the page on route change with smooth animation
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth", // Added smooth behavior for animation
-    });
-  }, [pathname]); // Dependency array: re-run effect when pathname changes
-
-  return null; // This component doesn't render anything
-};
 
 /**
  * App Component
@@ -83,14 +69,14 @@ const App = () => (
         <BrowserRouter
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
-          {/* Include ScrollToTop component to handle auto-scrolling on navigation */}
-          <ScrollToTop />
           {/* Main application container with a flexible column layout */}
           <div className="min-h-screen bg-background flex flex-col">
             {/* Navigation bar */}
             <Navigation />
             {/* Main content area, takes available vertical space */}
-            <div className="container mx-auto px-4 flex-1">
+            <div className="container mx-auto px-4 flex-1 py-6">
+              {/* Breadcrumb Navigation */}
+              <BreadcrumbNav />
               {/* DemoModeBanner placeholder (if used) */}
               {/* <DemoModeBanner /> */}
             </div>
@@ -142,6 +128,8 @@ const App = () => (
               <Route path="/about" element={<About />} />
               <Route path="/ml-tools" element={<MLTools />} />
               <Route path="/ml-tools/:tool" element={<MLTools />} />
+              <Route path="/showcase" element={<ProjectShowcase />} />
+              <Route path="/internship" element={<Internship />} />
               <Route
                 path="/controller/advanced-urdf-controller"
                 element={<AdvancedURDFController />}
@@ -158,6 +146,8 @@ const App = () => (
           </div>
           {/* Chatbot popup component */}
           <Chatbot />
+          {/* Scroll to Top Button */}
+          <ScrollToTop />
           {/* Footer component */}
           <Footer />
         </BrowserRouter>

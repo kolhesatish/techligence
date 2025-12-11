@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import Product from "../models/Products.js"; // Adjust path to your Product Mongoose model
+import Product from "../models/Products.js";
 
 dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/techligence";
 
-const seedProducts = [
+const professionalProducts = [
   {
     productId: 1,
     name: "RoboTech Explorer Pro",
@@ -16,7 +16,7 @@ const seedProducts = [
     originalPrice: "₹15,99,000",
     rating: 4.8,
     reviews: 324,
-    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=800&fit=crop&auto=format&q=90",
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=600&fit=crop",
     description: "Advanced 4WD exploration robot with AI-powered autonomous navigation, SLAM-based mapping, and real-time environmental analysis. Perfect for terrain mapping, search & rescue, and outdoor research applications.",
     features: [
       "360° LiDAR Mapping with SLAM",
@@ -57,7 +57,7 @@ const seedProducts = [
     originalPrice: "₹29,99,000",
     rating: 4.9,
     reviews: 156,
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1200&h=800&fit=crop&auto=format&q=90",
+    image: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&h=600&fit=crop&auto=format",
     description: "Heavy-duty 4WD industrial robot designed for manufacturing environments with precision control, safety monitoring, and seamless integration with existing production lines. Built for 24/7 operation.",
     features: [
       "50kg Payload Capacity",
@@ -98,7 +98,7 @@ const seedProducts = [
     originalPrice: "₹9,99,000",
     rating: 4.7,
     reviews: 89,
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=800&fit=crop&auto=format&q=90",
+    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=600&fit=crop",
     description: "Compact 4WD surveillance robot with advanced camera systems, AI-powered threat detection, and silent operation. Ideal for perimeter security, indoor monitoring, and event surveillance.",
     features: [
       "4K Night Vision Camera",
@@ -139,7 +139,7 @@ const seedProducts = [
     originalPrice: "₹21,99,000",
     rating: 4.6,
     reviews: 67,
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&h=800&fit=crop&auto=format&q=90",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=600&fit=crop&auto=format",
     description: "Scientific 4WD research robot equipped with modular sensor arrays, precise positioning, and comprehensive data collection systems. Designed for laboratory environments and field research.",
     features: [
       "Modular Sensor Arrays",
@@ -180,7 +180,7 @@ const seedProducts = [
     originalPrice: "₹18,99,000",
     rating: 4.9,
     reviews: 142,
-    image: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=1200&h=800&fit=crop&auto=format&q=90",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format",
     description: "Last-mile delivery robot with dynamic obstacle avoidance, secure package handling, and cloud-connected fleet management. Optimized for urban environments and campus deliveries.",
     features: [
       "Secure Package Compartment",
@@ -214,40 +214,41 @@ const seedProducts = [
   },
 ];
 
-const seedProductDatabase = async () => {
+const seedProfessionalProducts = async () => {
   try {
-    console.log("📦 Starting product database seeding...");
+    console.log("📦 Starting professional product database seeding...");
 
     // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB");
+    console.log("✅ Connected to MongoDB");
 
     // Clear existing products
     console.log("🗑️  Clearing existing products...");
     await Product.deleteMany({});
 
     // Create new products
-    console.log("🤖 Creating products...");
-    const createdProducts = await Product.create(seedProducts);
-    console.log(`Created ${createdProducts.length} products`);
+    console.log("🤖 Creating professional products...");
+    const createdProducts = await Product.create(professionalProducts);
+    console.log(`✅ Created ${createdProducts.length} products`);
 
     console.log("\n📋 Seeding completed for the following products:");
     createdProducts.forEach((product) => {
-      console.log(`   ID: ${product.productId}, Name: ${product.name}, Category: ${product.category}, Price Value: ${product.priceValue}`);
+      console.log(`   ✓ ID: ${product.productId}, Name: ${product.name}, Category: ${product.category}, Price: ${product.price}`);
     });
 
     await mongoose.connection.close();
     console.log("📴 Database connection closed");
-    console.log("🎉 Product seeding completed successfully!");
+    console.log("🎉 Professional product seeding completed successfully!");
   } catch (error) {
-    console.error("Product seeding failed:", error);
+    console.error("❌ Product seeding failed:", error);
     process.exit(1);
   }
 };
 
 // Run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  seedProductDatabase();
+  seedProfessionalProducts();
 }
 
-export default seedProductDatabase;
+export default seedProfessionalProducts;
+

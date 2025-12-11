@@ -1,7 +1,14 @@
 import { useState, forwardRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -16,7 +23,6 @@ import {
   User,
   LogIn,
   Settings,
-  ChevronDown,
   ShoppingBag,
   Cpu,
   Zap,
@@ -40,6 +46,8 @@ import {
   Search,
   LogOut,
   HouseIcon, // Import LogOut icon
+  Video,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShoppingCart from "./ShoppingCart";
@@ -66,7 +74,10 @@ const Navigation = () => {
 
   // Navigation structure with dropdowns
   const navigationConfig = {
-    simple: [{ name: "Home", href: "/", icon: HouseIcon }],
+    simple: [
+      { name: "Home", href: "/", icon: HouseIcon },
+      { name: "Showcase", href: "/showcase", icon: Video },
+    ],
     dropdown: {
       products: {
         name: "Products",
@@ -158,6 +169,18 @@ const Navigation = () => {
             href: "/tools",
             description: "Browse our collection of useful tools",
             icon: Wrench,
+          },
+          {
+            title: "Internship & Training",
+            href: "/internship",
+            description: "Structured 4-week roadmap with mentor support",
+            icon: GraduationCap,
+          },
+          {
+            title: "Project Showcase",
+            href: "/showcase",
+            description: "See deployed robotics case studies",
+            icon: Video,
           },
         ],
       },
@@ -543,6 +566,12 @@ const Navigation = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Mobile navigation menu</SheetTitle>
+                <SheetDescription>
+                  Browse Techligence links and account actions.
+                </SheetDescription>
+              </SheetHeader>
               <div className="flex flex-col space-y-4 mt-8">
                 <div className="flex items-center space-x-2 mb-6">
                   <div className="flex items-center justify-center w-8 h-8 bg-white rounded-lg border">

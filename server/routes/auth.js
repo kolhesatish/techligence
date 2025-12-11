@@ -585,20 +585,26 @@ router.post("/reset-password", async (req, res) => {
 // Google OAuth routes
 // Initiate Google OAuth
 router.get("/google", (req, res) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
-  const scope = "profile email";
-  
-  if (!clientId) {
-    return res.status(500).json({
-      success: false,
-      message: "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID in environment variables.",
-    });
-  }
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+    const scope = "profile email";
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    
+    if (!clientId) {
+      console.error("Google OAuth Error: GOOGLE_CLIENT_ID is not set in environment variables");
+      // Redirect to frontend with error instead of returning JSON
+      return res.redirect(`${frontendUrl}/auth?error=google_oauth_not_configured&message=Google OAuth is not configured. Please contact support.`);
+    }
 
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
-  
-  res.redirect(authUrl);
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
+    
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error("Google OAuth initiation error:", error);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    res.redirect(`${frontendUrl}/auth?error=google_auth_init_error&message=Failed to initiate Google authentication.`);
+  }
 });
 
 // Google OAuth callback

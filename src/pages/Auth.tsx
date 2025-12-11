@@ -70,10 +70,21 @@ const Auth = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
     const error = urlParams.get("error");
+    const message = urlParams.get("message");
     const googleAuth = urlParams.get("google_auth");
 
     if (error) {
-      toast.error(`Google authentication failed: ${error}`);
+      const errorMessages: Record<string, string> = {
+        google_oauth_not_configured: "Google OAuth is not configured. Please contact support or use email/password authentication.",
+        google_auth_failed: "Google authentication failed. Please try again.",
+        google_token_exchange_failed: "Failed to complete Google authentication. Please try again.",
+        google_userinfo_failed: "Failed to retrieve user information from Google. Please try again.",
+        google_auth_error: "An error occurred during Google authentication. Please try again.",
+        google_auth_init_error: "Failed to initiate Google authentication. Please try again.",
+      };
+      
+      const errorMessage = message || errorMessages[error] || `Google authentication failed: ${error}`;
+      toast.error(errorMessage);
       // Clean up URL
       window.history.replaceState({}, document.title, "/auth");
       return;

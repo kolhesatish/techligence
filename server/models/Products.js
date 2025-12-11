@@ -68,6 +68,20 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    technicalDetails: {
+      motors: [String],
+      sensors: [String],
+      compute: [String],
+      battery: String,
+      comms: [String],
+      useCases: [String],
+    },
+    datasheetUrl: {
+      type: String,
+    },
+    demoUrl: {
+      type: String,
+    },
   },
   {
     timestamps: true, // Keep createdAt and updatedAt

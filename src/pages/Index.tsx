@@ -9,6 +9,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import AppStatus from "@/components/AppStatus";
+import DemoStatus from "@/components/DemoStatus";
+import HowToTryGuide from "@/components/HowToTryGuide";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import { analytics } from "@/services/analytics";
+import { useEffect } from "react";
+import SEOHead from "@/components/SEOHead";
 import {
   ArrowRight,
   Bot, // Keep Bot import if it's used elsewhere, otherwise it can be removed
@@ -26,6 +32,15 @@ import {
 } from "lucide-react";
 
 const Index = () => {
+  useEffect(() => {
+    // Track page view
+    analytics.trackPageView('/');
+  }, []);
+
+  const handleCTAClick = (event: string, path: string) => {
+    analytics.trackCTAClick(event, path);
+  };
+
   const features = [
     {
       icon: Bot, // This is where the Bot icon is still used for features, so keep the import
@@ -80,8 +95,13 @@ const Index = () => {
   ];
 
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
+    <>
+      <SEOHead
+        title="Techligence - Advanced AI-Powered Robotics Solutions"
+        description="Revolutionizing industries with advanced AI-powered robotics. Cutting-edge 4WD robots, autonomous systems, and intelligent automation solutions."
+      />
+      <div className="flex flex-col">
+        {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-background via-accent/20 to-secondary/10">
         <div className="absolute inset-0 bg-grid-white/10 bg-[length:50px_50px] opacity-20" />
         <div className="container mx-auto px-4 py-24 relative">
@@ -103,7 +123,11 @@ const Index = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link to="/products">
-                  <Button size="lg" className="gap-2 text-lg px-8">
+                  <Button 
+                    size="lg" 
+                    className="gap-2 text-lg px-8"
+                    onClick={() => handleCTAClick('hero_explore_products', '/products')}
+                  >
                     Explore Products
                     <ArrowRight className="w-5 h-5" />
                   </Button>
@@ -113,6 +137,10 @@ const Index = () => {
                     variant="outline"
                     size="lg"
                     className="gap-2 text-lg px-8"
+                    onClick={() => {
+                      handleCTAClick('hero_try_controller', '/controller');
+                      analytics.trackDemoStart();
+                    }}
                   >
                     <Cog className="w-5 h-5" />
                     Try Controller
@@ -149,6 +177,41 @@ const Index = () => {
                 <div className="text-muted-foreground">{stat.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Live Demo Status & Analytics Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4">
+              <Zap className="w-3 h-3 mr-1" />
+              Live Demo & Analytics
+            </Badge>
+            <h2 className="text-3xl lg:text-5xl font-display font-bold mb-4">
+              Real-Time Performance
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Monitor our live demo status, system uptime, and engagement metrics in real-time.
+            </p>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <DemoStatus />
+            </div>
+            <div>
+              <AnalyticsDashboard />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How to Try Guide */}
+      <section className="py-16 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <HowToTryGuide />
           </div>
         </div>
       </section>
@@ -259,6 +322,7 @@ const Index = () => {
                 size="lg"
                 variant="secondary"
                 className="gap-2 text-lg px-8"
+                onClick={() => handleCTAClick('cta_view_products', '/products')}
               >
                 View All Products
                 <ArrowRight className="w-5 h-5" />
@@ -269,6 +333,7 @@ const Index = () => {
                 size="lg"
                 variant="outline"
                 className="gap-2 text-lg px-8 border-white text-primary"
+                onClick={() => handleCTAClick('cta_get_started', '/auth')}
               >
                 Get Started
                 <ChevronRight className="w-5 h-5" />
@@ -287,6 +352,7 @@ const Index = () => {
         </section>
       )} */}
     </div>
+    </>
   );
 };
 

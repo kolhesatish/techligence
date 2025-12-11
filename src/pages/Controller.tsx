@@ -6,15 +6,26 @@ import ShoppingCart from "@/components/ShoppingCart"; // Import ShoppingCart com
 import { useAuth } from "@/context/AuthContext"; // Import useAuth hook
 import { useNavigate } from "react-router-dom"; // Import useNavigate for redirection
 import { useToast } from "@/components/ui/use-toast"; // Import useToast for messages
+import { analytics } from "@/services/analytics"; // Import analytics
+import { useEffect } from "react"; // Import useEffect
+import DemoStatus from "@/components/DemoStatus"; // Import DemoStatus component
 
 const ControllerLandingPage = () => {
   const { isAuthenticated } = useAuth(); // Get isAuthenticated status from AuthContext
   const navigate = useNavigate(); // Initialize navigate for programmatic redirection
   const { toast } = useToast(); // Initialize toast for messages
 
+  useEffect(() => {
+    // Track page view
+    analytics.trackPageView('/controller');
+  }, []);
+
   const handleGetStarted = () => {
+    analytics.trackCTAClick('controller_get_started', '/controller');
     
     if (isAuthenticated) {
+      // Track demo start
+      analytics.trackDemoStart();
       // If authenticated, open the controller in a new tab
       navigate("/controller/advanced-urdf-controller");
     } else {
@@ -24,6 +35,7 @@ const ControllerLandingPage = () => {
         description: "You need to sign in to access the controller.",
         variant: "destructive", // Use a destructive variant for error messages
       });
+      analytics.trackCTAClick('controller_auth_required', '/auth');
       navigate("/auth"); // Redirect to the authentication page
     }
   };
@@ -60,6 +72,15 @@ const ControllerLandingPage = () => {
 
           </div>
           
+        </div>
+      </section>
+
+      {/* Demo Status Section */}
+      <section className="py-12 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto">
+            <DemoStatus />
+          </div>
         </div>
       </section>
 
