@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import AppStatus from "@/components/AppStatus";
+import PerformanceDashboard from "@/components/PerformanceDashboard";
 import {
   ArrowRight,
   Bot, // Keep Bot import if it's used elsewhere, otherwise it can be removed
@@ -150,6 +151,13 @@ const Index = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Performance Dashboard */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <PerformanceDashboard />
         </div>
       </section>
 
