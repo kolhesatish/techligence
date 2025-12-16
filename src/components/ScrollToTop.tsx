@@ -34,18 +34,23 @@ const ScrollToTop = () => {
   };
 
   return (
-    <Button
-      onClick={scrollToTop}
-      size="icon"
-      className={cn(
-        "fixed bottom-8 right-8 z-50 rounded-full shadow-lg transition-all duration-300",
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
-      )}
-      aria-label="Scroll to top"
-    >
-      <ArrowUp className="h-5 w-5" />
-    </Button>
-  );
+  <Button
+    onClick={scrollToTop}
+    onKeyDown={(e) => e.key === "Enter" && scrollToTop()}
+    size="icon"
+    title="Back to Top"
+    className={cn(
+      "fixed bottom-8 right-8 z-50 rounded-full shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none",
+      isVisible
+        ? "opacity-100 translate-y-0"
+        : "opacity-0 translate-y-10 pointer-events-none"
+    )}
+    aria-label="Scroll back to top"
+    disabled={!isVisible}
+  >
+    <ArrowUp className="h-5 w-5" />
+  </Button>
+);
 };
 
 export default ScrollToTop;
