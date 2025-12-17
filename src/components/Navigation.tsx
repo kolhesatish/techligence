@@ -147,6 +147,13 @@ const Navigation = () => {
         icon: Building,
         items: [
           {
+            title: "Use Cases",
+            href: "/use-cases",
+            description: "Real-world applications of our robotics solutions",
+            icon: Lightbulb,
+          },
+
+          {
             title: "Career Opportunities",
             href: "/career",
             description: "Join our team of innovators",
