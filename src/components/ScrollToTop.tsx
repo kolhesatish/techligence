@@ -16,7 +16,8 @@ const ScrollToTop = () => {
   useEffect(() => {
     const toggleVisibility = () => {
       // Consider "at top" if within the first 100px
-      if (window.pageYOffset > 100) {
+      const SCROLL_THRESHOLD = 100;
+      if (window.pageYOffset > SCROLL_THRESHOLD) {
         setIsAtTop(false);
       } else {
         setIsAtTop(true);
