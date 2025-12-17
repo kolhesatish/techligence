@@ -51,7 +51,7 @@ const ScrollToTop = () => {
       size="icon"
       title={isAtTop ? "Scroll to Bottom" : "Back to Top"}
       className={cn(
-        "fixed bottom-24 right-6 z-50 rounded-full shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none",
+        "fixed bottom-28 right-6 z-50 rounded-full shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none",
         "opacity-100 translate-y-0"
       )}
       aria-label={isAtTop ? "Scroll to bottom" : "Scroll back to top"}
