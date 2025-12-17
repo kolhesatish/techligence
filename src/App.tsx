@@ -40,6 +40,9 @@ import CookiePolicy from "./pages/CookiePolicy";
 import GDPR from "./pages/GDPR";
 import ProjectShowcase from "./pages/ProjectShowcase";
 import Internship from "./pages/Internship";
+import UseCases from "@/pages/use-cases";
+
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +99,7 @@ const App = () => (
               <Route path="/orders" element={<UserOrders />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/blog/new" element={<NewBlogPostPage />} />
+              <Route path="/use-cases" element={<UseCases />} />
               <Route
                 path="/admin/blog/edit/:slug"
                 element={<NewBlogPostPage />}
