@@ -56,7 +56,7 @@ face_cascade_emotion = None # Used for emotion detection
 face_cascade_age = None # Used for age estimation
 known_face_encodings = []
 known_face_names = []
-known_faces_dir = 'known_faces'
+known_faces_dir = os.path.join(os.path.dirname(__file__), 'known_faces')
 
 # Camera parameters for 3D coordinates in Object Detection (adjust if webcam resolution changes)
 FOCAL_LENGTH = 500
@@ -71,7 +71,8 @@ try:
         print(f"Created directory: {known_faces_dir}", file=sys.stderr)
 
     # Load YOLO Object Detector
-    yolo_model = YOLO("yolov8n.pt") # Small, fast model
+    yolo_model_path = os.path.join(os.path.dirname(__file__), "yolov8n.pt")
+    yolo_model = YOLO(yolo_model_path) # Small, fast model
     print("YOLOv8 model loaded successfully.", file=sys.stderr)
 
     # Load MiDaS Depth Estimator
@@ -81,7 +82,8 @@ try:
     print("MiDaS model loaded successfully.", file=sys.stderr)
 
     # Load Emotion Detection model
-    emotion_model = load_model("emotion_model.h5")
+    emotion_model_path = os.path.join(os.path.dirname(__file__), "emotion_model.h5")
+    emotion_model = load_model(emotion_model_path)
     print("Emotion detection model loaded successfully.", file=sys.stderr)
 
     # Load Age Estimation model
@@ -333,17 +335,24 @@ def predict_face():
         faces_result = []
 
         for encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-            name = "Unknown"
+            confidence = 0
             if known_face_encodings: # Only compare if there are known faces
                 # Compare current face encoding with known face encodings
                 distances = face_recognition.face_distance(known_face_encodings, encoding)
                 best_match_index = np.argmin(distances)
+                distance = distances[best_match_index]
+                
                 # A lower distance means a better match. 0.45 is a common threshold.
-                if distances[best_match_index] < 0.45:
+                if distance < 0.45:
                     name = known_face_names[best_match_index]
+                    # Calculate confidence: Convert distance (0.0 to ~1.0+) to confidence (1.0 to 0.0)
+                    # Simple linear inversion: confidence = 1.0 - distance
+                    # You might want to clip it to ensure it's not negative, though distance > 1 is rare for matches
+                    confidence = max(0.0, 1.0 - distance)
 
             faces_result.append({
                 'name': name,
+                'confidence': confidence,
                 'bbox': [int(left), int(top), int(right), int(bottom)]
             })
 

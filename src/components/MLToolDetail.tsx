@@ -29,9 +29,11 @@ import {
 import { toast } from "sonner";
 import { TOOLS_CONFIG } from "@/lib/constants.ts"; // Import the config
 import axios from "axios"; // Using axios for API calls
+import { FaceRecognitionTool } from "@/components/tools/FaceRecognitionTool";
 
 // Backend API URL - CHANGE THIS IF YOUR FLASK APP IS ON A DIFFERENT HOST/PORT
-const API_URL = "http://192.168.1.154:5001";
+// Backend API URL - using proxy
+const API_URL = "/api";
 
 interface ResultData {
   bbox?: number[];
@@ -176,7 +178,7 @@ const MLToolDetail = ({ tool }: { tool: string }) => {
             image: base64Image,
             type: tool.replace("-", "_"),
           };
-          
+
           let endpoint = "";
           switch (tool) {
             case "emotion":
@@ -198,7 +200,7 @@ const MLToolDetail = ({ tool }: { tool: string }) => {
             const response = await axios.post(endpoint, payload, {
               headers: { "Content-Type": "application/json" },
             });
-            
+
             // Map the response to the frontend's expected format
             let newResults: ResultData[] = [];
             if (tool === "emotion") {
@@ -212,7 +214,7 @@ const MLToolDetail = ({ tool }: { tool: string }) => {
             }
 
             setResults(newResults);
-            
+
             // Draw results on the canvas
             if (canvasRef.current) {
               const context = canvasRef.current.getContext("2d");
@@ -324,210 +326,214 @@ const MLToolDetail = ({ tool }: { tool: string }) => {
           <StatusBadge />
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Tool Interface */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tool Interface</CardTitle>
-              <CardDescription>
-                Upload or capture media to analyze with {currentTool.title}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Media Display Area */}
-              <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-2 text-center overflow-hidden">
-                {!isCameraActive && !imageSrc && (
-                  <div className="py-12">
-                    <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">
-                      Upload an image or start camera capture
-                    </p>
-                  </div>
-                )}
-                {isCameraActive && (
-                  <div className="relative">
-                    <Webcam
-                      audio={false}
-                      ref={webcamRef}
-                      screenshotFormat="image/jpeg"
-                      className="rounded-lg w-full"
-                    />
-                    {/* Bounding box overlay for camera feed */}
-                    <canvas
-                      ref={canvasRef}
-                      className="absolute top-0 left-0 w-full h-full"
-                    />
-                  </div>
-                )}
-                {imageSrc && (
-                  <div className="relative">
-                    <img src={imageSrc} alt="Uploaded" className="rounded-lg w-full" />
-                    {/* Bounding box overlay for uploaded image */}
-                    <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                      {results.map((result, index) => {
-                        if (result.bbox) {
-                          const [left, top, right, bottom] = result.bbox;
-                          const width = right - left;
-                          const height = bottom - top;
-                          const labelText = result.emotion || result.age || result.name || result.label;
-                          return (
-                            <g key={index}>
-                              <rect
-                                x={left}
-                                y={top}
-                                width={width}
-                                height={height}
-                                fill="none"
-                                stroke="red"
-                                strokeWidth="2"
-                              />
-                              <text
-                                x={left}
-                                y={top > 10 ? top - 5 : top + 15}
-                                fill="red"
-                                fontSize="14"
-                                fontWeight="bold"
-                                stroke="black"
-                                strokeWidth="0.5"
-                              >
-                                {labelText}
-                              </text>
-                            </g>
-                          );
-                        }
-                        return null;
-                      })}
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              {/* Controls */}
-              {currentTool.status !== "Coming Soon" ? (
-                <>
-                  <div className="flex gap-2 justify-center">
-                    <Button onClick={handleStartCamera} disabled={isCameraActive}>
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Camera
-                    </Button>
-                    <Button
-                      onClick={handleStopCamera}
-                      variant="destructive"
-                      disabled={!isCameraActive}
-                    >
-                      <Pause className="h-4 w-4 mr-2" />
-                      Stop Camera
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-2 justify-center">
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      <Button variant="outline" asChild>
-                        <span>
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload Image
-                        </span>
-                      </Button>
-                    </label>
-                    <input
-                      id="file-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    {imageSrc && (
-                      <>
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setImageSrc(null);
-                            setFile(null);
-                            setResults([]);
-                          }}
-                        >
-                          <Trash className="h-4 w-4 mr-2" />
-                          Clear Image
-                        </Button>
-                        <Button onClick={handleProcessImage} disabled={isLoading}>
-                          <Send className="h-4 w-4 mr-2" />
-                          {isLoading ? "Processing..." : "Process Image"}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <p>This tool is currently under development.</p>
-                  <p>Check back soon for updates!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Features and Add Face Form */}
-          <div className="space-y-8">
+        {tool === "face-recognition" ? (
+          <FaceRecognitionTool />
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Tool Interface */}
             <Card>
               <CardHeader>
-                <CardTitle>Features</CardTitle>
+                <CardTitle>Tool Interface</CardTitle>
                 <CardDescription>
-                  Key capabilities of {currentTool.title}
+                  Upload or capture media to analyze with {currentTool.title}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {currentTool.features.map((feature, index) => (
-                    <li key={index} className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-primary rounded-full" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+              <CardContent className="space-y-6">
+                {/* Media Display Area */}
+                <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-2 text-center overflow-hidden">
+                  {!isCameraActive && !imageSrc && (
+                    <div className="py-12">
+                      <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-4">
+                        Upload an image or start camera capture
+                      </p>
+                    </div>
+                  )}
+                  {isCameraActive && (
+                    <div className="relative">
+                      <Webcam
+                        audio={false}
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        className="rounded-lg w-full"
+                      />
+                      {/* Bounding box overlay for camera feed */}
+                      <canvas
+                        ref={canvasRef}
+                        className="absolute top-0 left-0 w-full h-full"
+                      />
+                    </div>
+                  )}
+                  {imageSrc && (
+                    <div className="relative">
+                      <img src={imageSrc} alt="Uploaded" className="rounded-lg w-full" />
+                      {/* Bounding box overlay for uploaded image */}
+                      <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+                        {results.map((result, index) => {
+                          if (result.bbox) {
+                            const [left, top, right, bottom] = result.bbox;
+                            const width = right - left;
+                            const height = bottom - top;
+                            const labelText = result.emotion || result.age || result.name || result.label;
+                            return (
+                              <g key={index}>
+                                <rect
+                                  x={left}
+                                  y={top}
+                                  width={width}
+                                  height={height}
+                                  fill="none"
+                                  stroke="red"
+                                  strokeWidth="2"
+                                />
+                                <text
+                                  x={left}
+                                  y={top > 10 ? top - 5 : top + 15}
+                                  fill="red"
+                                  fontSize="14"
+                                  fontWeight="bold"
+                                  stroke="black"
+                                  strokeWidth="0.5"
+                                >
+                                  {labelText}
+                                </text>
+                              </g>
+                            );
+                          }
+                          return null;
+                        })}
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Controls */}
+                {currentTool.status !== "Coming Soon" ? (
+                  <>
+                    <div className="flex gap-2 justify-center">
+                      <Button onClick={handleStartCamera} disabled={isCameraActive}>
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Camera
+                      </Button>
+                      <Button
+                        onClick={handleStopCamera}
+                        variant="destructive"
+                        disabled={!isCameraActive}
+                      >
+                        <Pause className="h-4 w-4 mr-2" />
+                        Stop Camera
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-2 justify-center">
+                      <label htmlFor="file-upload" className="cursor-pointer">
+                        <Button variant="outline" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </span>
+                        </Button>
+                      </label>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      {imageSrc && (
+                        <>
+                          <Button
+                            variant="secondary"
+                            onClick={() => {
+                              setImageSrc(null);
+                              setFile(null);
+                              setResults([]);
+                            }}
+                          >
+                            <Trash className="h-4 w-4 mr-2" />
+                            Clear Image
+                          </Button>
+                          <Button onClick={handleProcessImage} disabled={isLoading}>
+                            <Send className="h-4 w-4 mr-2" />
+                            {isLoading ? "Processing..." : "Process Image"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    <p>This tool is currently under development.</p>
+                    <p>Check back soon for updates!</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Add Face Form (Conditional) */}
-            {tool === "face-recognition" && (
+            {/* Features and Add Face Form */}
+            <div className="space-y-8">
               <Card>
                 <CardHeader>
-                  <CardTitle>Add a New Face</CardTitle>
+                  <CardTitle>Features</CardTitle>
                   <CardDescription>
-                    Register a new person for recognition.
+                    Key capabilities of {currentTool.title}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handleAddFaceSubmit} className="space-y-4">
-                    <Input
-                      placeholder="Enter a name"
-                      value={faceName}
-                      onChange={(e) => setFaceName(e.target.value)}
-                    />
-                    <label htmlFor="add-face-upload" className="cursor-pointer">
-                      <Button variant="outline" asChild>
-                        <span>
-                          <Upload className="h-4 w-4 mr-2" />
-                          {addFaceImage ? addFaceImage.name : "Select Image"}
-                        </span>
-                      </Button>
-                    </label>
-                    <input
-                      id="add-face-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setAddFaceImage(e.target.files?.[0] || null)}
-                      className="hidden"
-                    />
-                    <Button type="submit" disabled={isLoading} className="w-full">
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      {isLoading ? "Adding..." : "Add Face"}
-                    </Button>
-                  </form>
+                  <ul className="space-y-3">
+                    {currentTool.features.map((feature, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <div className="h-2 w-2 bg-primary rounded-full" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
-            )}
+
+              {/* Add Face Form (Conditional) - Kept for fallback but won't be reached for face-recognition */}
+              {tool === "face-recognition" && !isStaticTool && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add a New Face</CardTitle>
+                    <CardDescription>
+                      Register a new person for recognition.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleAddFaceSubmit} className="space-y-4">
+                      <Input
+                        placeholder="Enter a name"
+                        value={faceName}
+                        onChange={(e) => setFaceName(e.target.value)}
+                      />
+                      <label htmlFor="add-face-upload" className="cursor-pointer">
+                        <Button variant="outline" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {addFaceImage ? addFaceImage.name : "Select Image"}
+                          </span>
+                        </Button>
+                      </label>
+                      <input
+                        id="add-face-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setAddFaceImage(e.target.files?.[0] || null)}
+                        className="hidden"
+                      />
+                      <Button type="submit" disabled={isLoading} className="w-full">
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        {isLoading ? "Adding..." : "Add Face"}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
