@@ -31,3 +31,10 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
+
+# Python
+venv
+.venv
+env
+__pycache__
+*.pyc
